@@ -22,6 +22,9 @@ fem.io.savestep: 0.0
 fem.io.savecount: 1
 fem.timeprovider.factor: 1
 
+fem.io.checkpointstep: 1
+fem.io.checkpointmax: 100
+
 heat.timestep: 0.1
 heat.endtime: 1
 heat.theta: 1
@@ -29,12 +32,8 @@ heat.level: 0
 heat.repeats: 2
 heat.reducetimestepfactor: 0.25
 
-heat.problem:surface_parabolic
-coupled.problem:coupled_parabolic
+heat.problem:surface_mc
 
-spiral.timestep: 0.01 # explicit rhs: 0.005
-spiral.endtime: 20.
-spiral.level: 0
-spiral.repeats: 0
-spiral.reducetimestepfactor: 0.25
+mcesfem.Y1:0
+mcesfem.Y2:0
 

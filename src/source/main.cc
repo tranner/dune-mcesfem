@@ -49,6 +49,7 @@
 
 // include output
 #include <dune/fem/io/file/dataoutput.hh>
+#include <dune/fem/io/file/datawriter.hh>
 
 // include eoc output
 #include <dune/fem/misc/femeoc.hh>
@@ -139,6 +140,14 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   IOTupleType ioTuple( &(scheme.solution()), &gridExactSolution) ; // tuple with pointers
   DataOutputType dataOutput( grid, ioTuple, DataOutputParameters( step ) );
 
+  //! [CreateCP]
+  typedef Dune::Fem::CheckPointer< HGridType >   CheckPointerType;
+  CheckPointerType checkPointer(grid,timeProvider);
+
+  // make the solution persistent
+  Dune::Fem::persistenceManager << scheme.solution() ;
+  //! [CreateCP]
+
   const double endTime  = Dune::Fem::Parameter::getValue< double >( "heat.endtime", 2.0 );
   const double dtreducefactor = Dune::Fem::Parameter::getValue< double >("heat.reducetimestepfactor", 1 );
   double timeStep = Dune::Fem::Parameter::getValue< double >( "heat.timestep", 0.125 );
@@ -168,6 +177,9 @@ void algorithm ( HGridType &grid, int step, const int eocId )
     dataOutput.write( timeProvider );
     // finalise (compute errors)
     scheme.closeTimestep( gridExactSolution, timeProvider.deltaT() );
+
+    // write a checkpoint every few steps (see parameter file)
+    checkPointer.write( timeProvider );
   }
 
   // output final solution
