@@ -19,14 +19,14 @@ fem.preconditioning: true
 fem.prefix: ../output
 fem.eocOutPath: ../output/eoc
 fem.io.savestep: 0.0
-fem.io.savecount: 0
+fem.io.savecount: 1
 fem.timeprovider.factor: 1
 
 heat.timestep: 0.1
 heat.endtime: 1
 heat.theta: 1
 heat.level: 0
-heat.repeats: 10
+heat.repeats: 2
 heat.reducetimestepfactor: 0.25
 
 heat.problem:surface_parabolic
