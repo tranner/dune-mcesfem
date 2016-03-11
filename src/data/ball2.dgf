@@ -1,0 +1,34 @@
+DGF
+
+VERTEX
+ 0  0
+ 1  0
+ 0  1
+-1  0
+ 0 -1
+#
+
+SIMPLEX
+ 0 1 2
+ 0 2 3
+ 0 3 4
+ 0 4 1
+#
+
+BOUNDARYDOMAIN
+default 1
+
+PROJECTION
+function p(x) = x / |x|
+segment 1 2 p
+segment 2 3 p
+segment 3 4 p
+segment 4 1 p
+#
+
+GRIDPARAMETER
+NAME Ball
+REFINEMENTEDGE ARBITRARY
+#
+
+#

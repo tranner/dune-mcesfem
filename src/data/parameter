@@ -1,0 +1,40 @@
+
+fem.verboserank: 0
+fem.solver.verbose: 0
+
+#fem.io.macroGridFile_2d: ../data/unitcube-2d.dgf
+#fem.io.macroGridFile_2d: ../data/spiral-2d.dgf
+fem.io.macroGridFile_2d: ../data/sphere2.dgf
+# fem.io.macroGridFile_2d: ../data/ball2.dgf
+fem.io.macroGridFile_3d: ../data/ball.dgf
+#fem.io.macroGridFile_2d: ../data/hemi-sphere.dgf
+fem.io.macroGridFile_1d: ../data/circle.dgf
+
+istl.preconditioning.method: jacobi
+istl.preconditioning.iterations: 1
+istl.preconditioning.relaxation: 1
+# enable simple Jacobi preconditioning (for non istl inverse operators)
+fem.preconditioning: true
+
+fem.prefix: ../output
+fem.eocOutPath: ../output/eoc
+fem.io.savestep: 0.0
+fem.io.savecount: 0
+fem.timeprovider.factor: 1
+
+heat.timestep: 0.1
+heat.endtime: 1
+heat.theta: 1
+heat.level: 0
+heat.repeats: 10
+heat.reducetimestepfactor: 0.25
+
+heat.problem:surface_parabolic
+coupled.problem:coupled_parabolic
+
+spiral.timestep: 0.01 # explicit rhs: 0.005
+spiral.endtime: 20.
+spiral.level: 0
+spiral.repeats: 0
+spiral.reducetimestepfactor: 0.25
+

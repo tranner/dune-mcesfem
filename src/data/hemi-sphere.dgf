@@ -1,0 +1,31 @@
+DGF
+
+VERTEX
+ 0  0  1
+ 1  0  0
+ 0  1  0
+-1  0  0
+ 0 -1  0
+#
+
+SIMPLEX
+0 1 2
+0 2 3
+0 3 4
+0 4 1
+#
+
+BOUNDARYDOMAIN
+default 1
+
+PROJECTION
+function p(x) = x / |x|
+default p
+#
+
+GRIDPARAMETER
+NAME Projected-Sphere
+REFINEMENTEDGE ARBITRARY
+#
+
+#
