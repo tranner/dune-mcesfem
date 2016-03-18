@@ -29,7 +29,7 @@ heat.timestep: 0.1
 heat.endtime: 1
 heat.theta: 1
 heat.level: 0
-heat.repeats: 2
+heat.repeats: 5
 heat.reducetimestepfactor: 0.25
 
 heat.problem:surface_mc

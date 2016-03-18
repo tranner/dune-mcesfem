@@ -28,8 +28,7 @@ def run( idx ):
 
     print 'job', idx, 'complete'
 
-MM = 2
+MM = 12
 idx = range(MM)
 p = Pool( 20 )
 p.map( run, idx )
-
