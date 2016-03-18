@@ -38,45 +38,6 @@
 #ifndef DEFORMATION_HH
 #define DEFORMATION_HH
 
-#include <dune/common/exceptions.hh>
-#include <dune/grid/geometrygrid/coordfunction.hh>
-#include <dune/fem/space/common/functionspace.hh>
-
-// DeformationCoordFunction
-// ------------------------
-
-template< int dimWorld >
-struct DeformationCoordFunction
-{
-  typedef Dune::Fem::FunctionSpace< double, double, dimWorld, dimWorld > FunctionSpaceType;
-
-  typedef typename FunctionSpaceType::DomainFieldType DomainFieldType;
-  typedef typename FunctionSpaceType::RangeFieldType RangeFieldType;
-  typedef typename FunctionSpaceType::DomainType DomainType;
-  typedef typename FunctionSpaceType::RangeType RangeType;
-
-  explicit DeformationCoordFunction ( const double time = 0.0 )
-  : time_( time )
-  {}
-
-  void evaluate ( const DomainType &x, RangeType &y ) const
-  {
-    DomainType p = x;
-    p /= p.two_norm();
-
-    const double at = 1.0 + 0.25 * sin( time_ );
-
-    y[ 0 ] = p[ 0 ] * sqrt(at);
-    y[ 1 ] = p[ 1 ];
-    y[ 2 ] = p[ 2 ];
-  }
-
-  void setTime ( const double time ) { time_ = time; }
-
-private:
-  double time_;
-};
-
 // include discrete function space
 #include <dune/fem/space/lagrange.hh>
 // include discrete function
@@ -84,10 +45,18 @@ private:
 // lagrange interpolation 
 #include <dune/fem/operator/lagrangeinterpolation.hh>
 
-template< class Deformation, class GridPart, const unsigned int polorder = 1 >
-class DiscreteDeformationCoordHolder
+// DeformationCoordFunction
+// ------------------------
+
+template< class Deformation, class BoundaryProjection, class GridPart,
+	  const unsigned int codim, const unsigned int polorder = 1 >
+class DiscreteDeformationCoordHolder;
+
+template< class Deformation, class BoundaryProjection, class GridPart, const unsigned int polorder >
+class DiscreteDeformationCoordHolder< Deformation, BoundaryProjection, GridPart, 0, polorder >
 {
   typedef Deformation DeformationType;
+  typedef BoundaryProjection BoundaryProjectionType;
   typedef GridPart GridPartType;
 
 public:
@@ -98,17 +67,14 @@ public:
   // choose type of discrete function
   typedef Dune::Fem::ISTLBlockVectorDiscreteFunction< DiscreteFunctionSpaceType > DiscreteFunctionType;
 
-  DiscreteDeformationCoordHolder( Deformation& deformation, GridPart& gridPart )
-    : deformation_( deformation ), gridPart_( gridPart ),
+  DiscreteDeformationCoordHolder( Deformation& deformation, BoundaryProjectionType& boundaryProjection,
+				  GridPart& gridPart )
+    : deformation_( deformation ),
+      boundaryProjection_( boundaryProjection ),
+      gridPart_( gridPart ),
       discreteSpace_( gridPart ),
       coordFunction_( "deformation", discreteSpace_ )
   {
-    interpolate();
-  }
-
-  void setTime( const double time )
-  {
-    deformation_.setTime( time );
     interpolate();
   }
 
@@ -117,16 +83,243 @@ public:
     return coordFunction_;
   }
 
-protected:
+  int dofs() const
+  {
+    return discreteSpace_.size();
+  }
+
+  int elements() const
+  {
+    int n = 0;
+    for( auto it = discreteSpace_.begin(); it != discreteSpace_.end(); ++it )
+      ++n;
+    return n;
+  }
+
   void interpolate()
   {
-    Dune::Fem::LagrangeInterpolation
-      < DeformationType, DiscreteFunctionType > interpolation;
-    interpolation( deformation_, coordFunction_ );
+    typedef typename DiscreteFunctionType::DofType DofType;
+    typedef typename DiscreteFunctionType::DofIteratorType DofIteratorType;
+    static const int dimRange = DiscreteFunctionSpaceType::dimRange;
+
+    // set all DoFs to infinity
+    const DofIteratorType dend = coordFunction_.dend();
+    for( DofIteratorType dit = coordFunction_.dbegin(); dit != dend; ++dit )
+      *dit = std::numeric_limits< DofType >::infinity();
+
+    for( const auto& entity : discreteSpace_ )
+      {
+	const auto& lagrangePointSet
+	  = discreteSpace_.lagrangePointSet( entity );
+	const int nop = lagrangePointSet.nop();
+
+	auto df_local = coordFunction_.localFunction( entity );
+
+	// does element contain a boundary segment?
+	const bool boundary = entity.hasBoundaryIntersections();
+
+	// if not on boundary, map is identity
+	if( not boundary )
+	  {
+	    const auto geometry = entity.geometry();
+
+	    // assume point based local dofs
+	    int k = 0;
+	    for( int qp = 0; qp < nop; ++qp )
+	      {
+		// if the first DoF for this point is already valid, continue
+		if( df_local[ k ] == std::numeric_limits< DofType >::infinity() )
+		  {
+		    // find local coordinate
+		    const auto hatx = coordinate( lagrangePointSet[ qp ] );
+
+		    // find global coordinate
+		    typename DiscreteFunctionType::DomainType x = geometry.global( hatx );
+
+		    // evaluate the function in the Lagrange point
+		    typename DiscreteFunctionType::RangeType phi;
+		    deformation_.evaluate( x, phi );
+
+		    // assign the appropriate values to the DoFs
+		    for( int i = 0; i < dimRange; ++i, ++k )
+		      df_local[ k ] = phi[ i ];
+		  }
+		else
+		  k += dimRange;
+	      }
+	  }
+	else
+	  {
+	    const auto geometry = entity.geometry();
+	    std::vector< bool > isVertexOnBoundary( entity.subEntities( dimRange ) );
+	    for( int i = 0; i < geometry.corners(); ++i )
+	      {
+		isVertexOnBoundary[i] = boundaryProjection_.onBoundary( geometry.corner(i) );
+	      }
+
+	    // assume point based local dofs
+	    const int nop = lagrangePointSet.nop();
+	    int k = 0;
+	    for( int qp = 0; qp < nop; ++qp )
+	      {
+		// if the first DoF for this point is already valid, continue
+		if( df_local[ k ] == std::numeric_limits< DofType >::infinity() )
+		  {
+		    // find local coordinate
+		    const auto hatx = coordinate( lagrangePointSet[ qp ] );
+
+		    // find barycentric coordinates
+		    Dune::FieldVector< double, dimRange+1 > lambda;
+		    lambda[0] = 1.0;
+		    for( int i = 0; i < dimRange; ++i )
+		      {
+			lambda[i+1] = hatx[i];
+			lambda[0] -= hatx[i];
+		      }
+
+		    double lambdaStar = 0.0;
+		    for( int i = 0; i < dimRange+1; ++i )
+		      {
+			if( isVertexOnBoundary[i] )
+			  {
+			    lambdaStar += lambda[i];
+			  }
+		      }
+
+		    // find global coordinate
+		    typename DiscreteFunctionType::DomainType x = geometry.global( hatx );
+
+		    // find perturbation
+		    if( lambdaStar > 1.0e-8 )
+		      {
+			Dune::FieldVector< double, dimRange > y(0);
+			for( int i = 0; i < dimRange+1; ++i )
+			  {
+			    if( isVertexOnBoundary[i] )
+			      y.axpy(  lambda[i] / lambdaStar, geometry.corner(i) );
+			  }
+
+			Dune::FieldVector< double, dimRange > p;
+			boundaryProjection_.evaluate( y, p );
+
+			x.axpy( std::pow( lambdaStar, df_local.order()+2 ), ( p - y ) );
+		      }
+
+		    // evaluate deformation
+		    typename DiscreteFunctionType::RangeType phi;
+		    deformation_.evaluate( x, phi );
+
+		    // assign the appropriate values to the DoFs
+		    for( int i = 0; i < dimRange; ++i, ++k )
+		      df_local[ k ] = phi[ i ];
+		  }
+		else
+		  k += dimRange;
+	      }
+	  }
+      }
   }
 
 private:
   Deformation& deformation_;
+  BoundaryProjectionType& boundaryProjection_;
+  GridPart& gridPart_;
+  DiscreteFunctionSpaceType discreteSpace_;
+  DiscreteFunctionType coordFunction_;
+};
+
+template< class Deformation, class BoundaryProjection, class GridPart, const unsigned int polorder >
+class DiscreteDeformationCoordHolder< Deformation, BoundaryProjection, GridPart, 1, polorder >
+{
+  typedef Deformation DeformationType;
+  typedef BoundaryProjection BoundaryProjectionType;
+  typedef GridPart GridPartType;
+
+public:
+  typedef typename DeformationType :: FunctionSpaceType FunctionSpaceType;
+
+  //! choose type of discrete function space
+  typedef Dune::Fem::LagrangeDiscreteFunctionSpace< FunctionSpaceType, GridPartType, polorder > DiscreteFunctionSpaceType;
+  // choose type of discrete function
+  typedef Dune::Fem::ISTLBlockVectorDiscreteFunction< DiscreteFunctionSpaceType > DiscreteFunctionType;
+
+  DiscreteDeformationCoordHolder( Deformation& deformation, BoundaryProjectionType& boundaryProjection, GridPart& gridPart )
+    : deformation_( deformation ),
+      boundaryProjection_( boundaryProjection ),
+      gridPart_( gridPart ),
+      discreteSpace_( gridPart ),
+      coordFunction_( "deformation", discreteSpace_ )
+  {
+    interpolate();
+  }
+
+  const DiscreteFunctionType& coordFunction() const
+  {
+    return coordFunction_;
+  }
+
+  int dofs() const
+  {
+    return discreteSpace_.size();
+  }
+
+  int elements() const
+  {
+    int n = 0;
+    for( auto it = discreteSpace_.begin(); it != discreteSpace_.end(); ++it )
+      ++n;
+    return n;
+  }
+
+  void interpolate()
+  {
+    typedef typename DiscreteFunctionType::DofType DofType;
+    typedef typename DiscreteFunctionType::DofIteratorType DofIteratorType;
+    static const int dimRange = DiscreteFunctionSpaceType::dimRange;
+
+    // set all DoFs to infinity
+    const DofIteratorType dend = coordFunction_.dend();
+    for( DofIteratorType dit = coordFunction_.dbegin(); dit != dend; ++dit )
+      *dit = std::numeric_limits< DofType >::infinity();
+
+    for( const typename DiscreteFunctionSpaceType::EntityType &entity : discreteSpace_ )
+      {
+	const auto geometry = entity.geometry();
+
+        const auto &lagrangePointSet
+          = discreteSpace_.lagrangePointSet( entity );
+
+        auto df_local = coordFunction_.localFunction( entity );
+
+        // assume point based local dofs
+        const int nop = lagrangePointSet.nop();
+        int k = 0;
+        for( int qp = 0; qp < nop; ++qp )
+	  {
+	    // if the first DoF for this point is already valid, continue
+	    if( df_local[ k ] == std::numeric_limits< DofType >::infinity() )
+	      {
+		// evaluate the function in the Lagrange point
+		const auto x = geometry.global( coordinate( lagrangePointSet[qp] ) );
+		typename BoundaryProjectionType::DomainType p;
+		boundaryProjection_.evaluate( x, p );
+
+		typename Deformation::RangeType phi;
+		deformation_.evaluate( p, phi );
+
+		// assign the appropriate values to the DoFs
+		for( int i = 0; i < dimRange; ++i, ++k )
+		  df_local[ k ] = phi[ i ];
+	      }
+	    else
+	      k += dimRange;
+	  }
+      }
+  }
+
+private:
+  Deformation& deformation_;
+  BoundaryProjectionType& boundaryProjection_;
   GridPart& gridPart_;
   DiscreteFunctionSpaceType discreteSpace_;
   DiscreteFunctionType coordFunction_;
