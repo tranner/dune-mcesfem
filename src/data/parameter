@@ -19,7 +19,7 @@ fem.preconditioning: true
 fem.prefix: ../output
 fem.eocOutPath: ../output/eoc
 fem.io.savestep: 0.0
-fem.io.savecount: 1
+fem.io.savecount: 0
 fem.timeprovider.factor: 1
 
 fem.io.checkpointstep: 1
@@ -34,6 +34,6 @@ heat.reducetimestepfactor: 0.25
 
 heat.problem:surface_mc
 
-mcesfem.Y1:0
-mcesfem.Y2:0
+mcesfem.M:4
+mcesfem.seed:1792
 
