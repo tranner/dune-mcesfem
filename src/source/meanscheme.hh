@@ -81,6 +81,86 @@
 
 #include "femscheme.hh"
 
+template< class GridPart >
+struct ErrorOutput
+{
+  ErrorOutput( const GridPart& gridPart,
+	       const Dune::Fem::TimeProviderBase &tp,
+	       const DataOutputParameters &parameter )
+    : gridPart_( gridPart ),
+      tp_( tp ),
+      maxh_( 0.0 ),
+      maxTau_( 0.0 )
+  {
+    init( parameter );
+  }
+
+  ~ErrorOutput()
+  {
+    if( file_ )
+      {
+        file_ << "# h: " << maxh_ << std::endl;
+        file_ << "# tau: " << maxTau_ << std::endl;
+	file_.close();
+      }
+  }
+
+  void write( const double l2Error, const double h1Error )
+  {
+    if( file_ )
+      file_ << tp_.time() << "  " << l2Error << "  " << h1Error << std::endl;
+
+    computeMeshSize();
+  }
+
+protected:
+  void init( const DataOutputParameters &parameter )
+  {
+    std::string name = Dune :: Fem ::Parameter :: commonOutputPath() + "/";
+    // add prefix for data file
+    name += parameter.prefix();
+    name += ".txt";
+
+    std::cout << "opening file: " << name << std::endl;
+    file_.open( name.c_str() );
+    if( !file_ )
+      {
+	std::cout << "could not write error file" << std::endl;
+      }
+
+    if( file_ )
+      file_ << "# time  $L^2$ error  $H^1$ error" << std::endl;
+  }
+
+  void computeMeshSize()
+  {
+    for( auto e = gridPart_.template begin< 0 >();
+         e != gridPart_.template end< 0 >(); ++e )
+      {
+        const auto geo = e.geometry();
+        for( unsigned int i = 0; i < geo.corners(); ++i )
+          {
+            for( unsigned int j = 0; j < i; ++j )
+              {
+                const double dist = ( geo.corner( i ) - geo.corner( j ) ).two_norm();
+                maxh_ = std::max( dist, maxh_ );
+              }
+          }
+      }
+
+    maxTau_ = std::max( tp_.deltaT(), maxTau_ );
+  }
+
+private:
+  const GridPart& gridPart_;
+  const Dune::Fem::TimeProviderBase &tp_;
+
+  double maxh_;
+  double maxTau_;
+
+  mutable std::ofstream file_;
+};
+
 // FemScheme
 //----------
 
@@ -118,10 +198,15 @@ public:
   typedef Dune::Fem::L2Norm< GridPartType > L2NormType;
   typedef Dune::Fem::H1Norm< GridPartType > H1NormType;
 
-  MeanScheme( GridPartType &gridPart )
+  typedef ErrorOutput< GridPartType > ErrorOutputType;
+
+  MeanScheme( GridPartType &gridPart,
+	      const Dune::Fem::TimeProviderBase &tp,
+	      const int step )
     : gridPart_( gridPart ),
       discreteSpace_( gridPart_ ),
       solution_( "solution", discreteSpace_ ),
+      errorOutput_( gridPart, tp, DataOutputParameters( step ) ),
       linftyl2Error_( 0 ),
       l2h1Error_( 0 )
   {
@@ -158,6 +243,9 @@ public:
     H1NormType h1norm( gridPart_ );
     const double h1Error = h1norm.distance( exact, solution() );
     l2h1Error_ = std::sqrt( l2h1Error_*l2h1Error_ + deltaT * h1Error * h1Error );
+
+    // write to file
+    errorOutput_.write( l2Error, h1Error );
   }
 
   double linftyl2Error() const
@@ -182,6 +270,7 @@ protected:
   DiscreteFunctionSpaceType discreteSpace_; // discrete function space
   DiscreteFunctionType solution_;   // the unknown
 
+  ErrorOutputType errorOutput_;
   double linftyl2Error_;
   double l2h1Error_;
 };

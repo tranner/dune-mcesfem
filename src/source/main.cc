@@ -193,7 +193,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   SchemeType scheme( gridPart, implicitModel, explicitModel, step );
   std::vector< SchemeType > schemeVector( M, scheme );
   typedef MeanScheme< SchemeType > MeanSchemeType;
-  MeanSchemeType meanScheme( gridPart );
+  MeanSchemeType meanScheme( gridPart, timeProvider, step );
 
   // initialise random components of scheme
   const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.seed" );
