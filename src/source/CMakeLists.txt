@@ -18,3 +18,5 @@ set(EXTRA_DIST   main.cc deformation.hh dirichletconstraints.hh elliptic.hh fems
 
 #add_directory_test_target(_test_target)
 #add_dependencies(${_test_target} ${TESTS} ${COMPILE_XFAIL_TESTS})
+
+dune_symlink_to_source_files(FILES run.py)
