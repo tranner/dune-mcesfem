@@ -79,6 +79,8 @@
 #include "rhs.hh"
 #include "elliptic.hh"
 
+#include "femscheme.hh"
+
 // DataOutputParameters
 // --------------------
 
@@ -117,7 +119,7 @@ private:
  *                        and the type of the function space
  *******************************************************************************/
 template < class Model >
-class FemScheme
+class MeanScheme
 {
 public:
   //! type of the mathematical model
@@ -152,77 +154,45 @@ public:
   //! define Laplace operator
   typedef DifferentiableEllipticOperator< LinearOperatorType, ModelType > EllipticOperatorType;
 
-  FemScheme( GridPartType &gridPart,
-             ModelType& implicitModel )
-    : implicitModel_( implicitModel ),
-      gridPart_( gridPart ),
+  typedef FemScheme< ModelType > FemSchemeType;
+
+  MeanScheme( GridPartType &gridPart,
+	      const vector< FemSchemeType >& schemeVector )
+    : gridPart_( gridPart ),
       discreteSpace_( gridPart_ ),
       solution_( "solution", discreteSpace_ ),
-      rhs_( "rhs", discreteSpace_ ),
-      // the elliptic operator (implicit)
-      implicitOperator_( implicitModel_, discreteSpace_ ),
-      // create linear operator (domainSpace,rangeSpace)
-      linearOperator_( "assembled elliptic operator", discreteSpace_, discreteSpace_ ),
-      // tolerance for iterative solver
-      solverEps_( Dune::Fem::Parameter::getValue< double >( "poisson.solvereps", 1e-8 ) )
+      schemeVector_( schemeVector ),
+      linftyl2Error_( 0 ),
+      l2h1Error_( 0 )
   {
     // set all DoF to zero
     solution_.clear();
   }
 
-  FemScheme( const FemScheme& other )
-    : implicitModel_( other.implicitModel_ ),
-      gridPart_( other.gridPart_ ),
-      discreteSpace_( gridPart_ ),
-      solution_( other.solution_ ),
-      rhs_( other.rhs_ ),
-      // the elliptic operator (implicit)
-      implicitOperator_( implicitModel_, discreteSpace_ ),
-      // create linear operator (domainSpace,rangeSpace)
-      linearOperator_( "assembled elliptic operator", discreteSpace_, discreteSpace_ ),
-      // tolerance for iterative solver
-      solverEps_( Dune::Fem::Parameter::getValue< double >( "poisson.solvereps", 1e-8 ) )
-  {
-    // set all DoF to zero
-    solution_.clear();
-  }
-
-  DiscreteFunctionType &solution()
-  {
-    return solution_;
-  }
   const DiscreteFunctionType &solution() const
   {
+    solution_.clear();
+
+    for( auto scheme: schemeVector )
+      solution += scheme.solution();
+
+    solution /= (double)schemeVector.size();
+
     return solution_;
   }
 
-  //! setup the right hand side
-  void prepare()
+  template< class GridExactSolution >
+  void closeTimestep( const GridExactSolution &exact, const double deltaT )
   {
-    // set boundary values for solution
-    implicitOperator_.prepare( implicitModel_.dirichletBoundary(), solution_ );
+    // find l2 error
+    L2NormType l2norm( gridPart_ );
+    const double l2Error = l2norm.distance( exact, solution() );
+    linftyl2Error_ = std::max( linftyl2Error_, l2Error );
 
-    // assemble rhs
-    assembleRHS ( implicitModel_.rightHandSide(), rhs_ );
-
-    // apply constraints, e.g. Dirichlet contraints, to the result
-    implicitOperator_.prepare( solution_, rhs_ );
-  }
-
-  void solve ( bool assemble )
-  {
-    //! [Solve the system]
-    if( assemble )
-    {
-      // assemble linear operator (i.e. setup matrix)
-      implicitOperator_.jacobian( solution_ , linearOperator_ );
-    }
-
-    // inverse operator using linear operator
-    LinearInverseOperatorType invOp( linearOperator_, solverEps_, solverEps_ );
-    // solve system
-    invOp( rhs_, solution_ );
-    //! [Solve the system]
+    // find h1 error
+    H1NormType h1norm( gridPart_ );
+    const double h1Error = h1norm.distance( exact, solution() );
+    l2h1Error_ = std::sqrt( l2h1Error_*l2h1Error_ + deltaT * h1Error * h1Error );
   }
 
   const int dofs() const
@@ -232,19 +202,15 @@ public:
   }
 
 protected:
-  ModelType implicitModel_;   // the mathematical model
-
   GridPartType  &gridPart_;         // grid part(view), e.g. here the leaf grid the discrete space is build with
 
   DiscreteFunctionSpaceType discreteSpace_; // discrete function space
   DiscreteFunctionType solution_;   // the unknown
-  DiscreteFunctionType rhs_;        // the right hand side
 
-  EllipticOperatorType implicitOperator_; // the implicit operator
+  const vector< FemSchemeType >& schemeVector;
 
-  LinearOperatorType linearOperator_;  // the linear operator (i.e. jacobian of the implicit)
-
-  const double solverEps_ ; // eps for linear solver
+  double linftyl2Error_;
+  double l2h1Error_;
 };
 
 #endif // end #if ELLIPT_FEMSCHEME_HH

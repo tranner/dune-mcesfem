@@ -49,7 +49,6 @@
 
 // include output
 #include <dune/fem/io/file/dataoutput.hh>
-#include <dune/fem/io/file/datawriter.hh>
 
 // include eoc output
 #include <dune/fem/misc/femeoc.hh>
@@ -128,38 +127,48 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   // explicit model for right hand side
   ModelType explicitModel( problem, gridPart, false );
 
-  // create heat scheme
+  // create heat schemes
+  const int M = Dune::Fem::Parameter::getValue< double >( "mcesfem.M", 1 );
+  assert( M > 0 );
   typedef HeatScheme< ModelType, ModelType > SchemeType;
   SchemeType scheme( gridPart, implicitModel, explicitModel, step );
+  std::vector< SchemeType > schemeVector( M, scheme );
+  SchemeType meanScheme( gridPart, implicitModel, explicitModel, step );
+
+  // initialise random components of scheme
+  const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.seed" );
+  std::mt19937 mt( 1729 );
+  std::uniform_real_distribution<> dist(-1, 1);
+  for( auto& scheme : schemeVector )
+    {
+      const double Y1 = dist(mt);
+      const double Y2 = dist(mt);
+      scheme.setY1Y2( Y1, Y2 );
+      std::cout << "Y1: " << Y1 << " Y2: " << Y2 << std::endl;
+    }
 
   typedef Dune::Fem::GridFunctionAdapter< ProblemType, GridPartType > GridExactSolutionType;
   GridExactSolutionType gridExactSolution("exact solution", problem, gridPart, 5 );
   //! input/output tuple and setup datawritter
   typedef Dune::tuple< const typename SchemeType::DiscreteFunctionType *, GridExactSolutionType * > IOTupleType;
   typedef Dune::Fem::DataOutput< HGridType, IOTupleType > DataOutputType;
-  IOTupleType ioTuple( &(scheme.solution()), &gridExactSolution) ; // tuple with pointers
+  IOTupleType ioTuple( &(meanScheme.solution()), &gridExactSolution) ; // tuple with pointers
   DataOutputType dataOutput( grid, ioTuple, DataOutputParameters( step ) );
-
-  //! [CreateCP]
-  typedef Dune::Fem::CheckPointer< HGridType >   CheckPointerType;
-  CheckPointerType checkPointer(grid,timeProvider);
-
-  // make the solution persistent
-  Dune::Fem::persistenceManager << scheme.solution() ;
-  //! [CreateCP]
 
   const double endTime  = Dune::Fem::Parameter::getValue< double >( "heat.endtime", 2.0 );
   const double dtreducefactor = Dune::Fem::Parameter::getValue< double >("heat.reducetimestepfactor", 1 );
   double timeStep = Dune::Fem::Parameter::getValue< double >( "heat.timestep", 0.125 );
 
-  timeStep *= pow(dtreducefactor,step);
+  // timeStep *= pow(dtreducefactor,step);
 
   //! [time loop]
   // initialize with fixed time step
   timeProvider.init( timeStep ) ;
 
   // initialize scheme and output initial data
-  scheme.initialize();
+  for( auto& scheme : schemeVector )
+    scheme.initialize();
+
   // write initial solve
   dataOutput.write( timeProvider );
 
@@ -168,32 +177,34 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   //! [time loop]
   {
     // assemble explicit pare
-    scheme.prepare();
+    for( auto& scheme : schemeVector )
+      scheme.prepare();
     //! [Set the new time to move to new surface]
     discreteDeformation.setTime( timeProvider.time() + timeProvider.deltaT() );
     // solve once - but now we need to reassmble
-    scheme.solve(true);
+    for( auto& scheme : schemeVector )
+      scheme.solve(true);
     //! [Set the new time to move to new surface]
     dataOutput.write( timeProvider );
     // finalise (compute errors)
-    scheme.closeTimestep( gridExactSolution, timeProvider.deltaT() );
-
-    // write a checkpoint every few steps (see parameter file)
-    checkPointer.write( timeProvider );
+    for( auto& scheme : schemeVector )
+      scheme.closeTimestep( gridExactSolution, timeProvider.deltaT() );
+    meanScheme.closeTimestep( gridExactSolution, timeProvider.deltaT() );
   }
 
   // output final solution
   dataOutput.write( timeProvider );
 
   // get errors
-  std::vector< double > store;
-  store.push_back( scheme.linftyl2Error() );
-  store.push_back( scheme.l2h1Error() );
+  std::vector< double > store = { meanScheme.linftyl2Error(), meanScheme.l2h1Error() };
   Dune :: Fem :: FemEoc :: setErrors( eocId, store );
+
+  for( auto& scheme : schemeVector )
+    std::cout << "L2: " << scheme.linftyl2Error() << " H1: " << scheme.l2h1Error() << std::endl;
 
   // write to file / output
   const double h = EvolvingDomain :: GridWidth :: gridWidth( gridPart );
-  const int dofs = scheme.dofs();
+  const int dofs = 0;//scheme.dofs();
   Dune::Fem::FemEoc::write( h, dofs, 0.0, 0.0, std::cout );
 }
 

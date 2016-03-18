@@ -75,7 +75,7 @@ struct HeatModel : public DiffusionModel<FunctionSpace,GridPart>
   //! constructor taking problem reference, time provider,
   //! time step factor( either theta or -(1-theta) ),
   //! flag for the right hand side
-  HeatModel( const ProblemType& problem,
+  HeatModel( ProblemType& problem,
              const GridPart &gridPart,
              const bool implicit )
     : BaseType(problem,gridPart),
@@ -247,6 +247,11 @@ struct HeatModel : public DiffusionModel<FunctionSpace,GridPart>
   const InitialFunctionType &initialFunction() const
   {
     return problem_;
+  }
+
+  void setY1Y2( const double y1, const double y2 )
+  {
+    problem_.setY1Y2( y1, y2 );
   }
 
 protected:

@@ -201,9 +201,7 @@ public:
   using BaseType :: deltaT ;
 
   SurfaceMCProblem( const Dune::Fem::TimeProviderBase &timeProvider )
-    : BaseType( timeProvider ),
-      Y1_( Dune::Fem::Parameter::getValue<double>( "mcesfem.Y1" ) ),
-      Y2_( Dune::Fem::Parameter::getValue<double>( "mcesfem.Y2" ) )
+    : BaseType( timeProvider )
   {}
 
   //! the right hand side data (default = 0)
@@ -211,6 +209,7 @@ public:
 		 RangeType& phi) const
   {
     phi = RangeType(0);
+    phi += Y1_;
   }
 
   virtual void boundaryRhs( const DomainType& x,
@@ -293,9 +292,15 @@ public:
     return true ;
   }
 
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {
+    Y1_ = Y1;
+    Y2_ = Y2;
+  }
+
 private:
-  const double Y1_;
-  const double Y2_;
+  double Y1_;
+  double Y2_;
 };
 
 #endif // #ifndef POISSON_HH

@@ -164,6 +164,11 @@ public:
   {
     uJacobian( x, jac );
   }
+
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {
+    assert(0);
+  }
 };
 
 #endif // #ifndef ELLIPTC_PROBLEMINTERFACE_HH

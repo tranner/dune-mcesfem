@@ -119,7 +119,7 @@ public:
   typedef Dune::Fem::GridFunctionAdapter< FunctionWrapper<bnd>, GridPartType > DirichletBoundaryType;
 
   //! constructor taking problem reference 
-  DiffusionModel( const ProblemType& problem, const GridPart &gridPart )
+  DiffusionModel( ProblemType& problem, const GridPart &gridPart )
     : problem_( problem ),
       gridPart_(gridPart),
       rhs_(problem_),
@@ -260,7 +260,7 @@ protected:
     }
   };
    
-  const ProblemType& problem_;
+  ProblemType& problem_;
   const GridPart &gridPart_;
   FunctionWrapper<rhs> rhs_;
   FunctionWrapper<bnd> bnd_;

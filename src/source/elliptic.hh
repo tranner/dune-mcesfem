@@ -101,7 +101,7 @@ protected:
 
 public:
   //! contructor
-  EllipticOperator ( const ModelType &model, const DiscreteFunctionSpaceType &space )
+  EllipticOperator ( ModelType &model, const DiscreteFunctionSpaceType &space )
   : model_( model )
   , constraints_( model, space )
   {}
@@ -118,13 +118,14 @@ public:
   virtual void
   operator() ( const DiscreteFunctionType &u, DiscreteFunctionType &w ) const;
 
+  ModelType &model () { return model_; }
 protected:
   const ModelType &model () const { return model_; }
   const ConstraintsType &constraints () const { return constraints_; }
 
 private:
   ModelType model_;
-  ConstraintsType constraints_;
+  const ConstraintsType constraints_;
 };
 
 // DifferentiableEllipticOperator
@@ -166,15 +167,15 @@ protected:
 
 public:
   //! constructor
-  DifferentiableEllipticOperator ( const ModelType &model, const DiscreteFunctionSpaceType &space, bool sw=true )
+  DifferentiableEllipticOperator ( ModelType &model, const DiscreteFunctionSpaceType &space, bool sw=true )
   : BaseType( model, space )
   {}
 
   //! method to setup the jacobian of the operator for storage in a matrix
   void jacobian ( const DiscreteFunctionType &u, JacobianOperatorType &jOp ) const;
 
-protected:
   using BaseType::model;
+protected:
   using BaseType::constraints;
 };
 

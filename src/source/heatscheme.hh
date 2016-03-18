@@ -144,22 +144,22 @@ struct HeatScheme : public FemScheme<ImplicitModel>
   typedef Dune::Fem::L2Norm< GridPartType > L2NormType;
   typedef Dune::Fem::H1Norm< GridPartType > H1NormType;
 
-  typedef ErrorOutput< GridPartType > ErrorOutputType;
-
   HeatScheme( GridPartType &gridPart, 
-              const ImplicitModelType& implicitModel,
-              const ExplicitModelType& explicitModel,
+              ImplicitModelType& implicitModel,
+              ExplicitModelType& explicitModel,
 	      const unsigned int step = 0 )
   : BaseType(gridPart, implicitModel),
     explicitModel_(explicitModel),
     explicitOperator_( explicitModel_, discreteSpace_ ),
-    errorOutput_( gridPart, implicitModel_.timeProvider(), DataOutputParameters( step ) ),
     linftyl2Error_( 0 ),
     l2h1Error_( 0 )
   {}
 
   void prepare() 
-  { 
+  {
+    explicitOperator_.model().setY1Y2( y1_, y2_ );
+    implicitOperator_.model().setY1Y2( y1_, y2_ );
+
     // apply constraints, e.g. Dirichlet contraints, to the solution 
     explicitOperator_.prepare( explicitModel_.dirichletBoundary(), solution_ );
     // apply explicit operator and also setup right hand side 
@@ -187,9 +187,6 @@ struct HeatScheme : public FemScheme<ImplicitModel>
     H1NormType h1norm( gridPart_ );
     const double h1Error = h1norm.distance( exact, solution_ );
     l2h1Error_ = std::sqrt( l2h1Error_*l2h1Error_ + deltaT * h1Error * h1Error );
-
-    // write to file
-    errorOutput_.write( l2Error, h1Error );
   }
 
   double linftyl2Error() const
@@ -202,18 +199,32 @@ struct HeatScheme : public FemScheme<ImplicitModel>
     return l2h1Error_;
   }
 
+  void setY1Y2( const double y1, const double y2 )
+  {
+    y1_ = y1;
+
+    implicitModel_.setY1Y2( y1_, y2_ );
+    explicitModel_.setY1Y2( y1_, y2_ );
+
+    explicitOperator_.model().setY1Y2( y1_, y2_ );
+    implicitOperator_.model().setY1Y2( y1_, y2_ );
+  }
+
 private:
   using BaseType::gridPart_;
   using BaseType::discreteSpace_;
   using BaseType::solution_;
   using BaseType::implicitModel_;
   using BaseType::rhs_;
-  const ExplicitModelType &explicitModel_;
+  ExplicitModelType explicitModel_;
   typename BaseType::EllipticOperatorType explicitOperator_; // the operator for the rhs 
+  using BaseType::implicitOperator_;
 
-  ErrorOutputType errorOutput_;
   double linftyl2Error_;
   double l2h1Error_;
+
+  double y1_;
+  double y2_;
 };
 
 #endif // end #if HEAT_FEMSCHEME_HH
