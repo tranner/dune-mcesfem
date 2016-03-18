@@ -1,7 +1,7 @@
 set(GRIDTYPE  ALUGRID_SIMPLEX)
 set(GRIDDIM  3)
 set(WORLDDIM  3)
-set(POLORDER  2)
+set(POLORDER  1)
 set(WANT_ISTL  1)
 
 set(CLEANFILES  *.log)
