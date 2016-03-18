@@ -180,6 +180,9 @@ public:
   {
     return true ;
   }
+
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {}
 };
 
 template <class FunctionSpace>
@@ -204,12 +207,64 @@ public:
     : BaseType( timeProvider )
   {}
 
+  double Power( const double y, const int a ) const
+  {
+    assert( a > 0 );
+
+    if( a == 1 )
+      return y;
+
+    return y * Power( y, a-1 );
+  }
+
+  double Sin( const double x ) const
+  {
+    return sin( x );
+  }
+
+  double Cos( const double x ) const
+  {
+    return cos( x );
+  }
+
   //! the right hand side data (default = 0)
   virtual void f(const DomainType& x,
 		 RangeType& phi) const
   {
-    phi = RangeType(0);
-    phi += Y1_;
+    const double xx = x[0];
+    const double yy = x[1];
+    const double zz = x[2];
+    const double tt = time();
+
+    const double Y1 = Y1_;
+    const double Y2 = Y2_;
+
+    phi = (-128*Power(xx,7)*Y1*yy*Power(Sin(tt),2)*(48 + Sin(tt)) - 1024*Power(xx,8)*Y1*(-20*Y2 + (6*Y1 - Y2)*Sin(tt))*Sin(2*tt) -
+	   (Power(xx,3)*yy*Sin(tt)*Power(4 + Sin(tt),2)*(-2656 + 6168*Y1 + 160*Cos(tt) + 96*Cos(2*tt) - 24*Y1*Cos(2*tt) + 32*Y1*Power(zz,2)*(-227 + 3*Cos(2*tt) - 104*Sin(tt)) -
+							 8*(Y1 + Y2)*Power(zz,4)*(-5 + 5*Cos(2*tt) - 96*Sin(tt)) + (-1155 + 2048*Y1)*Sin(tt) + 32*Sin(2*tt) + Sin(3*tt)))/2. +
+	   Power(xx,5)*yy*Sin(tt)*(-1091 + 31040*Y1 + 16*Cos(tt) + 1092*Cos(2*tt) - 2368*Y1*Cos(2*tt) - 16*Cos(3*tt) - Cos(4*tt) + 8*(-542 + 3081*Y1)*Sin(tt) + 96*Sin(2*tt) + 80*Sin(3*tt) - 24*Y1*Sin(3*tt) +
+				   48*Y1*Power(zz,2)*(-40 + 40*Cos(2*tt) - 259*Sin(tt) + Sin(3*tt))) + (xx*yy*Power(4 + Sin(tt),3)*
+													(16 + 80*Y1 + 66*Cos(tt) - 16*Cos(2*tt) - 80*Y1*Cos(2*tt) - 2*Cos(3*tt) + (253 + 643*Y1)*Sin(tt) + 24*Sin(2*tt) + Sin(3*tt) - Y1*Sin(3*tt) +
+													 2*Y1*Power(zz,2)*(-112 + 112*Cos(2*tt) - 777*Sin(tt) + 3*Sin(3*tt)) - (Y1 + Y2)*Power(zz,4)*(-144 + 144*Cos(2*tt) - 911*Sin(tt) + 5*Sin(3*tt))))/2. +
+	   (Power(4 + Sin(tt),4)*(-4*(1 + Y1)*(Y1 - Y2)*Cos(tt) + 32*Y2*Cos(2*tt) + 4*Y1*Cos(3*tt) + 4*Power(Y1,2)*Cos(3*tt) - 4*Y2*Cos(3*tt) - 4*Y1*Y2*Cos(3*tt) - 3*Y2*Sin(tt) - 32*Y1*Sin(2*tt) - 32*Power(Y1,2)*Sin(2*tt) +
+				  64*Y2*Sin(2*tt) + 64*Y1*Y2*Sin(2*tt) - 8*Power(zz,4)*(4*(Power(Y1,2) - 15*Y1*Y2 - 6*Power(Y2,2)) + (Power(Y1,2) - 12*Y1*Y2 - 5*Power(Y2,2))*Sin(tt))*Sin(2*tt) -
+				  8*Y2*(Y1 + Y2)*Power(zz,6)*(3*Cos(tt) - 3*Cos(3*tt) + 28*Sin(2*tt)) + 5*Y2*Sin(3*tt) +
+				  Power(zz,2)*(8*(Power(Y1,2) - Y2 - 4*Y1*Y2)*Cos(tt) - 32*Y2*Cos(2*tt) - 8*Power(Y1,2)*Cos(3*tt) + 8*Y2*Cos(3*tt) + 32*Y1*Y2*Cos(3*tt) + 3*Y2*Sin(tt) + 64*Power(Y1,2)*Sin(2*tt) - 96*Y2*Sin(2*tt) -
+					       352*Y1*Y2*Sin(2*tt) - 5*Y2*Sin(3*tt))))/2. + Power(xx,4)*(-1 + Cos(2*tt) - 8*Sin(tt))*
+	   (31*Y1 - 32*Y2 - 5392*Y1*Cos(tt) + 15696*Power(Y1,2)*Cos(tt) + 5280*Y2*Cos(tt) - 16480*Y1*Y2*Cos(tt) + 296*Y1*Cos(2*tt) - 288*Y2*Cos(2*tt) + 272*Y1*Cos(3*tt) - 336*Power(Y1,2)*Cos(3*tt) - 160*Y2*Cos(3*tt) +
+	    96*Y1*Y2*Cos(3*tt) - 7*Y1*Cos(4*tt) - 36*(Y1 - Y2)*Sin(tt) + 4*Power(zz,2)*(-8*(461*Power(Y1,2) + 3*Y2 - 684*Y1*Y2)*Cos(tt) + 8*(13*Power(Y1,2) + 3*Y2 - 12*Y1*Y2)*Cos(3*tt) +
+											2*((-1280*Power(Y1,2) - 129*Y2 + 1760*Y1*Y2)*Cos(tt) + Y2*(1 + 5*Cos(2*tt) + Cos(3*tt)))*Sin(tt)) - 1948*Y1*Sin(2*tt) + 4608*Power(Y1,2)*Sin(2*tt) + 1544*Y2*Sin(2*tt) - 3456*Y1*Y2*Sin(2*tt) +
+	    32*Power(zz,4)*(24*(Power(Y1,2) - 2*Y1*Y2 - Power(Y2,2)) + (6*Power(Y1,2) - 7*Y1*Y2 - 5*Power(Y2,2))*Sin(tt))*Sin(2*tt) + 92*Y1*Sin(3*tt) - 60*Y2*Sin(3*tt) + 14*Y1*Sin(4*tt) - 4*Y2*Sin(4*tt)) -
+	   4*Power(xx,6)*Sin(tt)*(Y1 + 256*Y1*Cos(tt) - 14944*Power(Y1,2)*Cos(tt) - 160*Y2*Cos(tt) + 24704*Y1*Y2*Cos(tt) - 10240*Y1*Y2*Power(yy,2)*Cos(tt) - 8*Y1*Cos(2*tt) - 256*Y1*Cos(3*tt) + 608*Power(Y1,2)*Cos(3*tt) +
+				  160*Y2*Cos(3*tt) - 128*Y1*Y2*Cos(3*tt) + 7*Y1*Cos(4*tt) + 24*(Y1 - Y2)*Sin(tt) - 256*Y1*Power(zz,2)*Cos(tt)*(-3*Y1 + 42*Y2 + (3*Y1 - 2*Y2)*Cos(2*tt) + (-24*Y1 + 36*Y2)*Sin(tt)) + 1056*Y1*Sin(2*tt) -
+				  6656*Power(Y1,2)*Sin(2*tt) - 1032*Y2*Sin(2*tt) + 5376*Y1*Y2*Sin(2*tt) - 40*Y1*Sin(3*tt) + 40*Y2*Sin(3*tt) - 16*Y1*Sin(4*tt) + 4*Y2*Sin(4*tt)) -
+	   (Power(xx,2)*Power(4 + Sin(tt),2)*(48*Y1 - 72*Y2 - 24*(-33*Y1 + 192*Power(Y1,2) + 43*Y2 - 160*Y1*Y2)*Cos(tt) - 2240*Y1*Cos(2*tt) + 2240*Y2*Cos(2*tt) - 804*Y1*Cos(3*tt) + 4608*Power(Y1,2)*Cos(3*tt) +
+					      1036*Y2*Cos(3*tt) - 3840*Y1*Y2*Cos(3*tt) + 144*Y1*Cos(4*tt) - 120*Y2*Cos(4*tt) + 12*Y1*Cos(5*tt) - 4*Y2*Cos(5*tt) + (586*Y1 - 896*Y2)*Sin(tt) + 384*Y1*Sin(2*tt) - 19008*Power(Y1,2)*Sin(2*tt) -
+					      2304*Y2*Sin(2*tt) + 22784*Y1*Y2*Sin(2*tt) - 768*Y2*(Y1 + Y2)*Power(zz,6)*Power(Sin(tt),2)*(8*Cos(tt) + Sin(2*tt)) -
+					      64*Power(zz,4)*(28*(Power(Y1,2) - 2*Y1*Y2 - Power(Y2,2)) + (7*Power(Y1,2) - 19*Y1*Y2 - 10*Power(Y2,2))*Sin(tt))*(Cos(tt) - Cos(3*tt) + 8*Sin(2*tt)) - 975*Y1*Sin(3*tt) + 1152*Y2*Sin(3*tt) - 192*Y1*Sin(4*tt) +
+					      288*Power(Y1,2)*Sin(4*tt) + 128*Y2*Sin(4*tt) - 128*Y1*Y2*Sin(4*tt) - 16*Power(zz,2)*Sin(tt)*
+					      (8*Y2 - 4*(1040*Power(Y1,2) + 327*Y2 - 2072*Y1*Y2)*Cos(tt) + 72*Y2*Cos(2*tt) + 64*Power(Y1,2)*Cos(3*tt) + 28*Y2*Cos(3*tt) - 96*Y1*Y2*Cos(3*tt) - 6*Y2*Sin(tt) - 1024*Power(Y1,2)*Sin(2*tt) -
+					       322*Y2*Sin(2*tt) + 1792*Y1*Y2*Sin(2*tt) + 10*Y2*Sin(3*tt) + Y2*Sin(4*tt)) + 7*Y1*Sin(5*tt)))/8.)/(2.*(4 + Sin(tt))*Power(-4*Power(xx,2)*Sin(tt) + Power(4 + Sin(tt),2),2));
   }
 
   virtual void boundaryRhs( const DomainType& x,
@@ -225,6 +280,8 @@ public:
     D = 0;
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
+
+    D *= ( 1 + x[0]*x[0] + Y1_ * x[1]*x[1]*x[1]*x[1] + Y2_ * x[2]*x[2]*x[2]*x[2] );
   }
 
   //! advection coefficient (default = 0)

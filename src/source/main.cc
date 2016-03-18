@@ -56,21 +56,75 @@
 
 // include geometrty grid part
 #include <dune/fem/gridpart/geogridpart.hh>
-// include description of surface deformation
-#include "deformation.hh"
 
 // include discrete function space
 #include <dune/fem/space/lagrange.hh>
 // include discrete function
 #include <dune/fem/function/blockvectorfunction.hh>
-// lagrange interpolation 
+// lagrange interpolation
 #include <dune/fem/operator/lagrangeinterpolation.hh>
+
+#include "deformation.hh"
 
 // include header for heat model
 #include "heat.hh"
 
 #include "heatmodel.hh"
 #include "heatscheme.hh"
+
+#include "meanscheme.hh"
+
+#include <dune/fem/space/common/functionspace.hh>
+template< int dimWorld >
+struct BoundaryProjection
+{
+  typedef Dune::Fem::FunctionSpace< double, double, dimWorld, dimWorld > FunctionSpaceType;
+
+  typedef typename FunctionSpaceType::DomainFieldType DomainFieldType;
+  typedef typename FunctionSpaceType::RangeFieldType RangeFieldType;
+  typedef typename FunctionSpaceType::DomainType DomainType;
+  typedef typename FunctionSpaceType::RangeType RangeType;
+
+  void evaluate ( const DomainType &x, RangeType &y ) const
+  {
+    y = x;
+    y /= y.two_norm();
+  }
+
+  bool onBoundary( const DomainType& x )
+  {
+    return true;
+  }
+};
+
+template< int dimWorld >
+struct DeformationCoordFunction
+{
+  typedef Dune::Fem::FunctionSpace< double, double, dimWorld, dimWorld > FunctionSpaceType;
+
+  typedef typename FunctionSpaceType::DomainFieldType DomainFieldType;
+  typedef typename FunctionSpaceType::RangeFieldType RangeFieldType;
+  typedef typename FunctionSpaceType::DomainType DomainType;
+  typedef typename FunctionSpaceType::RangeType RangeType;
+
+  explicit DeformationCoordFunction ( const double time = 0.0 )
+  : time_( time )
+  {}
+
+  void evaluate ( const DomainType &x, RangeType &y ) const
+  {
+    const double at = 1.0 + 0.25 * sin( time_ );
+
+    y[ 0 ] = x[ 0 ] * sqrt(at);
+    y[ 1 ] = x[ 1 ];
+    y[ 2 ] = x[ 2 ];
+  }
+
+  void setTime ( const double time ) { time_ = time; }
+
+private:
+  double time_;
+};
 
 // assemble-solve-estimate-mark-refine-IO-error-doitagain
 template <class HGridType>
@@ -85,12 +139,17 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   //! [Setup the grid part for a deforming domain]
   typedef Dune::Fem::AdaptiveLeafGridPart< HGridType, Dune::InteriorBorder_Partition > HostGridPartType;
   HostGridPartType hostGridPart( grid );
+
+  // construct deformation
+  typedef BoundaryProjection< HGridType::dimensionworld > BoundaryProjectionType;
+  BoundaryProjectionType boundaryProjection;
   typedef DeformationCoordFunction< HGridType::dimensionworld > DeformationType;
   DeformationType deformation;
 
-  typedef DiscreteDeformationCoordHolder< DeformationType, HostGridPartType, 1 > DiscreteDeformationCoordHolderType;
+  typedef DiscreteDeformationCoordHolder< DeformationType, BoundaryProjectionType,
+					  HostGridPartType, 1, 1 > DiscreteDeformationCoordHolderType;
   typedef typename DiscreteDeformationCoordHolderType :: DiscreteFunctionType CoordinateFunctionType;
-  DiscreteDeformationCoordHolderType discreteDeformation( deformation, hostGridPart );
+  DiscreteDeformationCoordHolderType discreteDeformation( deformation, boundaryProjection, hostGridPart );
 
   typedef Dune::Fem::GeoGridPart< CoordinateFunctionType > GridPartType;
   GridPartType gridPart( discreteDeformation.coordFunction() );
@@ -133,12 +192,13 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   typedef HeatScheme< ModelType, ModelType > SchemeType;
   SchemeType scheme( gridPart, implicitModel, explicitModel, step );
   std::vector< SchemeType > schemeVector( M, scheme );
-  SchemeType meanScheme( gridPart, implicitModel, explicitModel, step );
+  typedef MeanScheme< SchemeType > MeanSchemeType;
+  MeanSchemeType meanScheme( gridPart );
 
   // initialise random components of scheme
   const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.seed" );
-  std::mt19937 mt( 1729 );
-  std::uniform_real_distribution<> dist(-1, 1);
+  std::mt19937 mt( seed + step );
+  std::uniform_real_distribution<> dist(-0.5, 0.5);
   for( auto& scheme : schemeVector )
     {
       const double Y1 = dist(mt);
@@ -150,7 +210,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   typedef Dune::Fem::GridFunctionAdapter< ProblemType, GridPartType > GridExactSolutionType;
   GridExactSolutionType gridExactSolution("exact solution", problem, gridPart, 5 );
   //! input/output tuple and setup datawritter
-  typedef Dune::tuple< const typename SchemeType::DiscreteFunctionType *, GridExactSolutionType * > IOTupleType;
+  typedef Dune::tuple< const typename MeanSchemeType::DiscreteFunctionType *, GridExactSolutionType * > IOTupleType;
   typedef Dune::Fem::DataOutput< HGridType, IOTupleType > DataOutputType;
   IOTupleType ioTuple( &(meanScheme.solution()), &gridExactSolution) ; // tuple with pointers
   DataOutputType dataOutput( grid, ioTuple, DataOutputParameters( step ) );
@@ -159,7 +219,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   const double dtreducefactor = Dune::Fem::Parameter::getValue< double >("heat.reducetimestepfactor", 1 );
   double timeStep = Dune::Fem::Parameter::getValue< double >( "heat.timestep", 0.125 );
 
-  // timeStep *= pow(dtreducefactor,step);
+  timeStep *= pow(dtreducefactor,step);
 
   //! [time loop]
   // initialize with fixed time step
@@ -168,6 +228,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   // initialize scheme and output initial data
   for( auto& scheme : schemeVector )
     scheme.initialize();
+  meanScheme.computeMean( schemeVector );
 
   // write initial solve
   dataOutput.write( timeProvider );
@@ -180,10 +241,13 @@ void algorithm ( HGridType &grid, int step, const int eocId )
     for( auto& scheme : schemeVector )
       scheme.prepare();
     //! [Set the new time to move to new surface]
-    discreteDeformation.setTime( timeProvider.time() + timeProvider.deltaT() );
+    deformation.setTime( timeProvider.time() + timeProvider.deltaT() );
+    discreteDeformation.interpolate();
     // solve once - but now we need to reassmble
     for( auto& scheme : schemeVector )
       scheme.solve(true);
+    meanScheme.computeMean( schemeVector );
+
     //! [Set the new time to move to new surface]
     dataOutput.write( timeProvider );
     // finalise (compute errors)
@@ -196,15 +260,14 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   dataOutput.write( timeProvider );
 
   // get errors
-  std::vector< double > store = { meanScheme.linftyl2Error(), meanScheme.l2h1Error() };
+  std::vector< double > store;
+  store.push_back( meanScheme.linftyl2Error() );
+  store.push_back( meanScheme.l2h1Error() );
   Dune :: Fem :: FemEoc :: setErrors( eocId, store );
-
-  for( auto& scheme : schemeVector )
-    std::cout << "L2: " << scheme.linftyl2Error() << " H1: " << scheme.l2h1Error() << std::endl;
 
   // write to file / output
   const double h = EvolvingDomain :: GridWidth :: gridWidth( gridPart );
-  const int dofs = 0;//scheme.dofs();
+  const int dofs = scheme.dofs();
   Dune::Fem::FemEoc::write( h, dofs, 0.0, 0.0, std::cout );
 }
 

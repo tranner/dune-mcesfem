@@ -35,8 +35,8 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  
 **************************************************************************/
-#ifndef ELLIPT_FEMSCHEME_HH
-#define ELLIPT_FEMSCHEME_HH
+#ifndef ELLIPT_MEANSCHEME_HH
+#define ELLIPT_MEANSCHEME_HH
 
 // iostream includes
 #include <iostream>
@@ -81,31 +81,6 @@
 
 #include "femscheme.hh"
 
-// DataOutputParameters
-// --------------------
-
-struct DataOutputParameters
-: public Dune::Fem::LocalParameter< Dune::Fem::DataOutputParameters, DataOutputParameters >
-{
-  DataOutputParameters ( const int step )
-  : step_( step )
-  {}
-
-  DataOutputParameters ( const DataOutputParameters &other )
-  : step_( other.step_ )
-  {}
-
-  std::string prefix () const
-  {
-    std::stringstream s;
-    s << "poisson-" << step_ << "-";
-    return s.str();
-  }
-
-private:
-  int step_;
-};
-
 // FemScheme
 //----------
 
@@ -118,50 +93,35 @@ private:
  *     Model::ProblemType boundary data, exact solution,
  *                        and the type of the function space
  *******************************************************************************/
-template < class Model >
+template < class Scheme >
 class MeanScheme
 {
 public:
-  //! type of the mathematical model
-  typedef Model ModelType ;
+  typedef Scheme SchemeType;
 
   //! grid view (e.g. leaf grid view) provided in the template argument list
-  typedef typename ModelType::GridPartType GridPartType;
+  typedef typename SchemeType::GridPartType GridPartType;
 
   //! type of underyling hierarchical grid needed for data output
   typedef typename GridPartType::GridType GridType;
 
   //! type of function space (scalar functions, \f$ f: \Omega -> R) \f$
-  typedef typename ModelType :: FunctionSpaceType   FunctionSpaceType;
+  typedef typename SchemeType :: FunctionSpaceType   FunctionSpaceType;
 
   //! choose type of discrete function space
-  typedef Dune::Fem::LagrangeDiscreteFunctionSpace< FunctionSpaceType, GridPartType, POLORDER > DiscreteFunctionSpaceType;
+  typedef typename SchemeType :: DiscreteFunctionSpaceType DiscreteFunctionSpaceType;
 
   // choose type of discrete function, Matrix implementation and solver implementation
-#if HAVE_DUNE_ISTL && WANT_ISTL
-  typedef Dune::Fem::ISTLBlockVectorDiscreteFunction< DiscreteFunctionSpaceType > DiscreteFunctionType;
-  typedef Dune::Fem::ISTLLinearOperator< DiscreteFunctionType, DiscreteFunctionType > LinearOperatorType;
-  // typedef Dune::Fem::ISTLCGOp< DiscreteFunctionType, LinearOperatorType > LinearInverseOperatorType;
-  typedef Dune::Fem::ISTLGMResOp< DiscreteFunctionType, LinearOperatorType > LinearInverseOperatorType;
-#else
-  typedef Dune::Fem::AdaptiveDiscreteFunction< DiscreteFunctionSpaceType > DiscreteFunctionType;
-  typedef Dune::Fem::SparseRowLinearOperator< DiscreteFunctionType, DiscreteFunctionType > LinearOperatorType;
-  typedef Dune::Fem::CGInverseOperator< DiscreteFunctionType > LinearInverseOperatorType;
-#endif
+  typedef typename SchemeType :: DiscreteFunctionType DiscreteFunctionType;
 
-  /*********************************************************/
+  // norm types
+  typedef Dune::Fem::L2Norm< GridPartType > L2NormType;
+  typedef Dune::Fem::H1Norm< GridPartType > H1NormType;
 
-  //! define Laplace operator
-  typedef DifferentiableEllipticOperator< LinearOperatorType, ModelType > EllipticOperatorType;
-
-  typedef FemScheme< ModelType > FemSchemeType;
-
-  MeanScheme( GridPartType &gridPart,
-	      const vector< FemSchemeType >& schemeVector )
+  MeanScheme( GridPartType &gridPart )
     : gridPart_( gridPart ),
       discreteSpace_( gridPart_ ),
       solution_( "solution", discreteSpace_ ),
-      schemeVector_( schemeVector ),
       linftyl2Error_( 0 ),
       l2h1Error_( 0 )
   {
@@ -169,15 +129,20 @@ public:
     solution_.clear();
   }
 
-  const DiscreteFunctionType &solution() const
+  void computeMean( const std::vector< SchemeType >& schemeVector )
   {
     solution_.clear();
 
-    for( auto scheme: schemeVector )
-      solution += scheme.solution();
+    for( const auto& scheme : schemeVector )
+      {
+	solution_ += scheme.solution();
+      }
 
-    solution /= (double)schemeVector.size();
+    solution_ /= (double)schemeVector.size();
+  }
 
+  const DiscreteFunctionType &solution() const
+  {
     return solution_;
   }
 
@@ -195,6 +160,16 @@ public:
     l2h1Error_ = std::sqrt( l2h1Error_*l2h1Error_ + deltaT * h1Error * h1Error );
   }
 
+  double linftyl2Error() const
+  {
+    return linftyl2Error_;
+  }
+
+  double l2h1Error() const
+  {
+    return l2h1Error_;
+  }
+
   const int dofs() const
   {
     int tmp = discreteSpace_.size();
@@ -207,10 +182,8 @@ protected:
   DiscreteFunctionSpaceType discreteSpace_; // discrete function space
   DiscreteFunctionType solution_;   // the unknown
 
-  const vector< FemSchemeType >& schemeVector;
-
   double linftyl2Error_;
   double l2h1Error_;
 };
 
-#endif // end #if ELLIPT_FEMSCHEME_HH
+#endif // end #if ELLIPT_MEANSCHEME_HH
