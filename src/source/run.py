@@ -10,9 +10,12 @@ def run( idx ):
     outdir = '../output/run_{0}'.format( idx )
     subprocess.call( ["mkdir", "-p", outdir] )
 
-    M = 2**idx
-    seed = 1729 + M
-    flags = 'mcesfem.M:{0} mcesfem.seed:{1} fem.prefix:{2}'.format( M, seed, outdir )
+    m = idx / 10
+    r = idx % 10
+
+    M = 2**m
+    seed = 1729 + idx
+    flags = 'mcesfem.M:{0} mcesfem.rng.seed:{1} fem.prefix:{2}'.format( M, seed, outdir )
     print 'job', idx, 'flags', flags
 
     outfile = open( outdir + '/main.out', 'w' )
@@ -28,7 +31,7 @@ def run( idx ):
 
     print 'job', idx, 'complete'
 
-MM = 12
-idx = range(MM)
-p = Pool( 20 )
+MM = 10
+idx = range(MM*10)
+p = Pool( 10 )
 p.map( run, idx )

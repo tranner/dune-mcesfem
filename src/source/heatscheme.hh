@@ -121,6 +121,7 @@ struct HeatScheme : public FemScheme<ImplicitModel>
   void setY1Y2( const double y1, const double y2 )
   {
     y1_ = y1;
+    y2_ = y2;
 
     implicitModel_.setY1Y2( y1_, y2_ );
     explicitModel_.setY1Y2( y1_, y2_ );

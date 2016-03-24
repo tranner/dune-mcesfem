@@ -230,6 +230,11 @@ public:
   {
     return RightHandSideType( "right hand side", rhs_, gridPart_, 5 );  
   }
+
+  const ProblemType& problem() const
+  {
+    return problem_;
+  }
   
 protected:
   template <FunctionId id>

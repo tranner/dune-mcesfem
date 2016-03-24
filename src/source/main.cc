@@ -196,16 +196,20 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   MeanSchemeType meanScheme( gridPart, timeProvider, step );
 
   // initialise random components of scheme
-  const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.seed" );
-  std::mt19937 mt( seed + step );
-  std::uniform_real_distribution<> dist(-0.5, 0.5);
+  const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.seed" );
+  const double center = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.center" );
+  const double range = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.range" );
+  static std::mt19937 mt( seed );
+  std::uniform_real_distribution<> dist( center-range/2.0, center+range/2.0 );
   for( auto& scheme : schemeVector )
     {
       const double Y1 = dist(mt);
       const double Y2 = dist(mt);
+
       scheme.setY1Y2( Y1, Y2 );
       std::cout << "Y1: " << Y1 << " Y2: " << Y2 << std::endl;
     }
+  problem.setY1Y2( center, center );
 
   typedef Dune::Fem::GridFunctionAdapter< ProblemType, GridPartType > GridExactSolutionType;
   GridExactSolutionType gridExactSolution("exact solution", problem, gridPart, 5 );
