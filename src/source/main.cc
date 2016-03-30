@@ -98,7 +98,7 @@ struct BoundaryProjection
 };
 
 template< int dimWorld >
-struct DeformationCoordFunction
+struct DeformationCoordFunctionBase
 {
   typedef Dune::Fem::FunctionSpace< double, double, dimWorld, dimWorld > FunctionSpaceType;
 
@@ -107,23 +107,50 @@ struct DeformationCoordFunction
   typedef typename FunctionSpaceType::DomainType DomainType;
   typedef typename FunctionSpaceType::RangeType RangeType;
 
-  explicit DeformationCoordFunction ( const double time = 0.0 )
+  explicit DeformationCoordFunctionBase ( const double time = 0.0 )
   : time_( time )
   {}
 
-  void evaluate ( const DomainType &x, RangeType &y ) const
+  virtual void evaluate ( const DomainType &x, RangeType &y ) const
   {
-    const double at = 1.0 + 0.25 * sin( time_ );
+    y = x;
+  }
+
+  double time() const { return time_; }
+  void setTime ( const double time ) { time_ = time; }
+
+private:
+  double time_;
+};
+
+template< int dimWorld >
+struct DeformationCoordFunction
+  : public DeformationCoordFunctionBase< dimWorld >
+{
+  typedef DeformationCoordFunctionBase< dimWorld > BaseType;
+  typedef Dune::Fem::FunctionSpace< double, double, dimWorld, dimWorld > FunctionSpaceType;
+
+  typedef typename FunctionSpaceType::DomainFieldType DomainFieldType;
+  typedef typename FunctionSpaceType::RangeFieldType RangeFieldType;
+  typedef typename FunctionSpaceType::DomainType DomainType;
+  typedef typename FunctionSpaceType::RangeType RangeType;
+
+  explicit DeformationCoordFunction ( const double time = 0.0 )
+    : BaseType( time )
+  {}
+
+  virtual void evaluate ( const DomainType &x, RangeType &y ) const
+  {
+    const double at = 1.0 + 0.25 * sin( time() );
 
     y[ 0 ] = x[ 0 ] * sqrt(at);
     y[ 1 ] = x[ 1 ];
     y[ 2 ] = x[ 2 ];
   }
 
-  void setTime ( const double time ) { time_ = time; }
 
 private:
-  double time_;
+  using BaseType :: time;
 };
 
 // assemble-solve-estimate-mark-refine-IO-error-doitagain
@@ -143,8 +170,31 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   // construct deformation
   typedef BoundaryProjection< HGridType::dimensionworld > BoundaryProjectionType;
   BoundaryProjectionType boundaryProjection;
-  typedef DeformationCoordFunction< HGridType::dimensionworld > DeformationType;
-  DeformationType deformation;
+  typedef DeformationCoordFunctionBase< HGridType::dimensionworld > DeformationType;
+
+  // choose deformation
+  const std::string problemNames [] = { "surface_heat", "surface_mc", "surface_stationary_mc" };
+  const int problemNumber = Dune :: Fem :: Parameter :: getEnum( "heat.problem", problemNames );
+  DeformationType *deformationPtr = 0;
+  switch( problemNumber )
+    {
+    case 0:
+      deformationPtr = new DeformationCoordFunction< HGridType::dimensionworld >;
+      break;
+    case 1:
+      deformationPtr = new DeformationCoordFunction< HGridType::dimensionworld >;
+      break;
+    case 2:
+      deformationPtr = new DeformationCoordFunctionBase< HGridType::dimensionworld >;
+      break;
+
+    default:
+      std::cerr << "unrecognised problem name" << std::endl;
+    }
+
+  // recover deformation
+  assert( deformationPtr );
+  DeformationType &deformation = *deformationPtr;
 
   typedef DiscreteDeformationCoordHolder< DeformationType, BoundaryProjectionType,
 					  HostGridPartType, 1, 1 > DiscreteDeformationCoordHolderType;
@@ -159,10 +209,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   typedef HeatModel< FunctionSpaceType, GridPartType > ModelType;
   typedef typename ModelType :: ProblemType ProblemType;
 
-  // choose problem
   ProblemType* problemPtr = 0;
-  const std::string problemNames [] = { "surface_heat", "surface_mc" };
-  const int problemNumber = Dune :: Fem :: Parameter :: getEnum( "heat.problem", problemNames );
   switch( problemNumber )
     {
     case 0:
@@ -171,6 +218,8 @@ void algorithm ( HGridType &grid, int step, const int eocId )
     case 1:
       problemPtr = new SurfaceMCProblem< FunctionSpaceType > ( timeProvider );
       break;
+    case 2:
+      problemPtr = new SurfaceMCStationaryProblem< FunctionSpaceType > ( timeProvider );
 
     default:
       std::cerr << "unrecognised problem name" << std::endl;
