@@ -306,9 +306,7 @@ public:
   virtual void u(const DomainType& x,
 		 RangeType& phi) const
   {
-    phi = sin( time() ) * x[0] * x[1]
-      + Y1_ * x[0]*x[0] * sin( 2 * time() )
-      + Y2_ * x[1]*x[1] * sin( 2 * time() );
+    phi = sin( time() ) * x[0] * x[1];
   }
 
   //! the jacobian of the exact solution
@@ -316,8 +314,8 @@ public:
 			 JacobianRangeType& ret) const
   {
     JacobianRangeType grad;
-    grad[ 0 ][ 0 ] = sin( time() ) * x[1] + 2 * Y1_ * x[0] * sin( 2 * time() );
-    grad[ 0 ][ 1 ] = sin( time() ) * x[0] + 2 * Y2_ * x[1] * sin( 2 * time() );;
+    grad[ 0 ][ 0 ] = sin( time() ) * x[1];
+    grad[ 0 ][ 1 ] = sin( time() ) * x[0];
     grad[ 0 ][ 2 ] = 0.0;
 
     const double at = 1.0 + 0.25 * sin( time() );

@@ -9,7 +9,7 @@ def eoc( a, b ):
         return -1
     return np.log( a / b )
 
-colors = 'rgbymck'
+colors = 'bgrcmyk'
 
 rundirs = [ f for f in os.listdir('.') if 'run_' in f ]
 rundirs.sort()
@@ -104,7 +104,7 @@ for run in rundirs:
         #                                                        l2Gamma[-1], '  ---  ', '  ---  ' )
 
         if h < 0:
-            print 'read to time ', time[-1]
+            print 'read to time ', time[-1], ' at level ', i
 
         hs.append( h )
         L2s.append( l2Gamma[-1] )
