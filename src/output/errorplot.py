@@ -3,6 +3,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import os
+from collections import OrderedDict
 
 def eoc( a, b ):
     if b == 0:
@@ -106,15 +107,17 @@ for run in rundirs:
         if h < 0:
             print 'read to time ', time[-1], ' at level ', i
 
+        l2Gmax = max( l2Gamma )
+
         hs.append( h )
-        L2s.append( l2Gamma[-1] )
+        L2s.append( l2Gmax )
         H1s.append( h1Gamma[-1] )
 
         if M >= 0 or 1:
             if M in L2ss:
-                L2ss[ M ].append( (l2Gamma[-1],h) )
+                L2ss[ M ].append( (l2Gmax,h) )
             else:
-                L2ss[ M ] = [ (l2Gamma[-1],h) ]
+                L2ss[ M ] = [ (l2Gmax,h) ]
 
             if M in H1ss:
                 H1ss[ M ].append( (h1Gamma[-1],h) )
@@ -126,8 +129,8 @@ for run in rundirs:
         hOld = h
         tauOld = tau
 
-        plt.figure(4)
-        plt.semilogy( time, l2Gamma, colors[i] )
+        plt.figure(5)
+        plt.semilogy( time, l2Gamma, colors[i], label='Level {0}'.format(i) )
 
     plt.figure(1)
     plt.loglog( hs, L2s, '.-', label=run )
@@ -143,12 +146,14 @@ plt.xlabel('$h$')
 plt.ylabel('$H^1$ error')
 plt.legend(loc='best')
 
+plt.figure(5)
+handles, labels = plt.gca().get_legend_handles_labels()
+by_label = OrderedDict(zip(labels, handles))
+plt.legend(by_label.values(), by_label.keys(), loc='best')
+
 plt.figure(3)
 for i, (M, errorPairs) in enumerate(L2ss.iteritems()):
     print 'M', M
-
-    # for e in errors:
-    #     plt.loglog( M, e, 'kx' )
 
     byhdict = {}
 
@@ -172,7 +177,6 @@ for i, (M, errorPairs) in enumerate(L2ss.iteritems()):
 
     hsSorted = [x for (x,y) in sorted(zip(hs,means), key=lambda pair: -pair[0])]
     meansSorted = [y for (x,y) in sorted(zip(hs,means), key=lambda pair: -pair[0])]
-
 
     meanOld = -1
     hOld = -1
@@ -198,10 +202,64 @@ plt.ylabel('$L^2$ error')
 
 plt.legend( loc='best' )
 
-plt.figure(5)
+
+plt.figure(4)
+for i, (M, errorPairs) in enumerate(H1ss.iteritems()):
+    print 'M', M
+
+    byhdict = {}
+
+    for e,h in errorPairs:
+        plt.loglog( h, e, colors[i] + 'x' )
+
+        if h in byhdict:
+            byhdict[ h ].append( e )
+        else:
+            byhdict[ h ] = [e]
+
+
+    hs = []
+    means = []
+
+    for h, errors in byhdict.iteritems():
+        mean = sum( errors ) / float( len(errors) )
+
+        hs.append(h)
+        means.append(mean)
+
+    hsSorted = [x for (x,y) in sorted(zip(hs,means), key=lambda pair: -pair[0])]
+    meansSorted = [y for (x,y) in sorted(zip(hs,means), key=lambda pair: -pair[0])]
+
+    meanOld = -1
+    hOld = -1
+
+    print '    h         tau      H1 Gamma  (eoc h)'
+    for h, mean in zip( hsSorted, meansSorted ):
+        if meanOld >= 0:
+            eocGammah = eoc( mean, meanOld ) / eoc( h, hOld )
+            print '{0:7.4e} {1:7.4e} {2:7.4e} {3:7.4f} {4}'.format( h, tau,
+                                                                mean, eocGammah, len(byhdict[h]) )
+        else:
+            print '{0:7.4e} {1:7.4e} {2:7.4e} {3} {4}'.format( h, tau,
+                                                               mean, '  ---  ', len(byhdict[h]) )
+
+        meanOld = mean
+        hOld = h
+
+
+    plt.loglog( hsSorted, meansSorted, colors[i] + '-o', label='$M = {0}$'.format(M) )
+
+plt.xlabel('$h$')
+plt.ylabel('$L^2$ error')
+
+plt.legend( loc='best' )
+
+
+plt.figure(6)
 
 # the histogram of the data
 plt.title('Distribution of $Y_1$ and $Y_2$')
 plt.hist( y1 + y2, 50, facecolor='green', alpha=0.5)
 
 plt.show()
+
