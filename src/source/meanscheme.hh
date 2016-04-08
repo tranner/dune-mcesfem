@@ -92,7 +92,8 @@ struct ErrorOutput
       maxh_( 0.0 ),
       maxTau_( 0.0 )
   {
-    init( parameter );
+    if( Dune::Fem::MPIManager::rank() == 0 )
+      init( parameter );
   }
 
   ~ErrorOutput()
@@ -218,12 +219,28 @@ public:
   {
     solution_.clear();
 
+    // find total size
+    unsigned int mySize = schemeVector.size();
+    unsigned int size = Dune::Fem::MPIManager::comm().sum( mySize );
+
+    // perform local sum
+    DiscreteFunctionType mySum( solution_ );
+    mySum.clear();
+
     for( const auto& scheme : schemeVector )
       {
-	solution_ += scheme.solution();
+	mySum += scheme.solution();
       }
 
-    solution_ /= (double)schemeVector.size();
+    // perform global average
+    const auto dend = solution_.dend();
+    auto sumIt = mySum.dbegin();
+    for( auto dit = solution_.dbegin(); dit != dend; ++dit, ++sumIt )
+      {
+	double mySum = *sumIt;
+	double globalSum = Dune::Fem::MPIManager::comm().sum( mySum );
+	*dit = globalSum / (double)size;
+      }
   }
 
   const DiscreteFunctionType &solution() const

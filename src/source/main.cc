@@ -235,9 +235,20 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   // explicit model for right hand side
   ModelType explicitModel( problem, gridPart, false );
 
+  // decide how many runs I should do
+  const int globalM = Dune::Fem::Parameter::getValue< double >( "mcesfem.M", 1 );
+  assert( globalM > 0 );
+  const int M = globalM / Dune::Fem::MPIManager::size()
+    + ( Dune::Fem::MPIManager::rank() < ( globalM % Dune::Fem::MPIManager::size() ) ? 1 : 0 );
+
+  for( int p = 0; p < Dune::Fem::MPIManager::size(); ++p )
+    {
+      if( p == Dune::Fem::MPIManager::rank() )
+	std::cout << "[" << p << "] " << "my M: " << M << std::endl;
+      Dune::Fem::MPIManager::comm().barrier();
+    }
+
   // create heat schemes
-  const int M = Dune::Fem::Parameter::getValue< double >( "mcesfem.M", 1 );
-  assert( M > 0 );
   typedef HeatScheme< ModelType, ModelType > SchemeType;
   SchemeType scheme( gridPart, implicitModel, explicitModel, step );
   std::vector< SchemeType > schemeVector( M, scheme );
@@ -248,7 +259,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.seed" );
   const double center = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.center" );
   const double range = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.range" );
-  static std::mt19937 mt( seed );
+  static std::mt19937 mt( seed + Dune::Fem::MPIManager::rank() );
   std::uniform_real_distribution<> dist( center-range/2.0, center+range/2.0 );
   for( auto& scheme : schemeVector )
     {
@@ -256,7 +267,13 @@ void algorithm ( HGridType &grid, int step, const int eocId )
       const double Y2 = dist(mt);
 
       scheme.setY1Y2( Y1, Y2 );
-      std::cout << "Y1: " << Y1 << " Y2: " << Y2 << std::endl;
+
+      for( int p = 0; p < Dune::Fem::MPIManager::size(); ++p )
+	{
+	  if( p == Dune::Fem::MPIManager::rank() )
+	    std::cout << "[" << p << "] " << "Y1: " << Y1 << " Y2: " << Y2 << std::endl;
+	  Dune::Fem::MPIManager::comm().barrier();
+	}
     }
   problem.setY1Y2( center, center );
 
