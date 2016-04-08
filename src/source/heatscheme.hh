@@ -143,8 +143,8 @@ private:
   double linftyl2Error_;
   double l2h1Error_;
 
-  double y1_;
-  double y2_;
+  using BaseType::y1_;
+  using BaseType::y2_;
 };
 
 #endif // end #if HEAT_FEMSCHEME_HH

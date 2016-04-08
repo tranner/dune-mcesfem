@@ -215,6 +215,7 @@ public:
     if( assemble )
     {
       // assemble linear operator (i.e. setup matrix)
+      implicitOperator_.model().setY1Y2( y1_, y2_ );
       implicitOperator_.jacobian( solution_ , linearOperator_ );
     }
 
@@ -231,6 +232,17 @@ public:
     return Dune::Fem::MPIManager::comm().sum( tmp );
   }
 
+  const LinearOperatorType& linearOperator() const { return linearOperator_; }
+
+  void setY1Y2( const double y1, const double y2 )
+  {
+    y1_ = y1;
+    y2_ = y2;
+
+    implicitModel_.setY1Y2( y1_, y2_ );
+    implicitOperator_.model().setY1Y2( y1_, y2_ );
+  }
+
 protected:
   ModelType implicitModel_;   // the mathematical model
 
@@ -245,6 +257,9 @@ protected:
   LinearOperatorType linearOperator_;  // the linear operator (i.e. jacobian of the implicit)
 
   const double solverEps_ ; // eps for linear solver
+
+  double y1_;
+  double y2_;
 };
 
 #endif // end #if ELLIPT_FEMSCHEME_HH
