@@ -29,24 +29,16 @@ for run in rundirs:
     H1s = []
 
     try:
-        mainfile = open( run + '/main.out' )
+        parameterfn = run + '/parameter.log'
+        parameterfile = open( parameterfn )
     except:
-        continue
-    for line in mainfile.readlines():
-        if '#' in line:
-            ll = line.split()
-            for l in ll:
-                data = l.split(':')
-                if data[0] == 'mcesfem.M':
-                    M = int( data[1] )
-                    print 'M = ', M
+       print 'unable to open ', parameterfn
+       continue
 
-        if 'Y1:' and 'Y2:' in line:
-            data = line.split()
-            y1.append( float( data[1] ) )
-            y2.append( float( data[3] ) )
-
-    mainfile.close()
+    for line in parameterfile.readlines():
+        if 'mcesfem.M:' in line:
+            data = line.split(':')
+            M = int( data[1] )
 
     l2GammaOld = -1
     h1GammaOld = -1
