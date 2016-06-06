@@ -190,6 +190,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
 
     default:
       std::cerr << "unrecognised problem name" << std::endl;
+      assert(0);
     }
 
   // recover deformation
@@ -220,9 +221,11 @@ void algorithm ( HGridType &grid, int step, const int eocId )
       break;
     case 2:
       problemPtr = new SurfaceMCStationaryProblem< FunctionSpaceType > ( timeProvider );
+      break;
 
     default:
       std::cerr << "unrecognised problem name" << std::endl;
+      assert(0);
     }
 
   // recover problem
@@ -302,9 +305,16 @@ void algorithm ( HGridType &grid, int step, const int eocId )
 
   // write initial solve
   dataOutput.write( timeProvider );
+  // finalise (compute errors)
+  for( auto& scheme : schemeVector )
+    scheme.closeTimestep( gridExactSolution, timeProvider.deltaT() );
+  meanScheme.closeTimestep( gridExactSolution, timeProvider.deltaT() );
+
+  // increment time
+  timeProvider.next( timeStep );
 
   // time loop, increment with fixed time step
-  for( ; timeProvider.time() < endTime; timeProvider.next( timeStep ) )
+  for( ; timeProvider.time() <= endTime; timeProvider.next( timeStep ) )
   //! [time loop]
   {
     // assemble explicit pare
@@ -373,7 +383,7 @@ try
   const int eocId = Dune::Fem::FemEoc::addEntry( femEocHeaders );
 
   // type of hierarchical grid
-  typedef Dune :: AlbertaGrid< 2, 3 > HGridType;
+  typedef Dune :: AlbertaGrid< GRIDDIM, WORLDDIM > HGridType;
   static_assert( HGridType :: dimension == HGridType :: dimensionworld - 1, "this code is written with the assumption grid dim = world dim -1" );
 
   // create grid from DGF file

@@ -380,13 +380,29 @@ public:
 
   SurfaceMCStationaryProblem( const Dune::Fem::TimeProviderBase &timeProvider )
     : BaseType( timeProvider )
-  {}
+  {
+    assert( dimDomain == 2 );
+  }
+
+  double Cos( const double a ) const { return cos( a ); }
+  double Sin( const double a ) const { return sin( a ); }
+  double Power( const double a, int n ) const
+  {
+    if( n == 1 )
+      return a;
+    else
+      return a * Power( a, n-1 );
+  }
 
   //! the right hand side data (default = 0)
   virtual void f(const DomainType& x,
 		 RangeType& phi) const
   {
-    phi = 0.5 * exp( - 6.0 * time() ) * Y1_ * ( x[0] * ( -1 + 12 * Y1_ * x[1] + 8 * x[1]*x[1] ) + x[1] * ( 8 - 8 * x[1]*x[1] - 8 * x[2]*x[2] ) );
+    const double t = time();
+    const double xx = x[0];
+    const double yy = x[1];
+
+    phi = (4*Cos(t)*Cos(3*xx) + 4*Y1_*Cos(t)*Cos(5*xx) + 4*Cos(t)*Cos(3*yy) + 4*Y2_*Cos(t)*Cos(5*yy) + 36*Cos(3*yy)*Sin(t) + 100*Y2_*Cos(5*yy)*Sin(t) + 9*Y1_*Cos(3*yy)*Sin(t)*Sin(2*xx) + 25*Y1_*Y2_*Cos(5*yy)*Sin(t)*Sin(2*xx) + 9*Y2_*Cos(3*yy)*Sin(t)*Sin(2*yy) + 25*Power(Y2_,2)*Cos(5*yy)*Sin(t)*Sin(2*yy) - xx*Sin(t)*(3*Sin(3*xx) + 5*Y1_*Sin(5*xx))*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy)) + 3*Y2_*Sin(t)*(Sin(yy) + Sin(5*yy)) - yy*Sin(t)*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy))*(3*Sin(3*yy) + 5*Y2_*Sin(5*yy)) - 2*xx*yy*Sin(t)*(Y2_*Cos(2*yy)*(3*Sin(3*xx) + 5*Y1_*Sin(5*xx)) + Y1_*Cos(2*xx)*(3*Sin(3*yy) + 5*Y2_*Sin(5*yy))) + 5*Power(Y2_,2)*Sin(t)*(Sin(3*yy) + Sin(7*yy)) + Power(yy,2)*Sin(t)*(-36*Cos(3*yy) - 100*Y2_*Cos(5*yy) + 3*Y1_*Sin(xx) - 9*Y1_*Cos(3*yy)*Sin(2*xx) - 25*Y1_*Y2_*Cos(5*yy)*Sin(2*xx) + 5*Power(Y1_,2)*Sin(3*xx) + 3*Y1_*Sin(5*xx) + 5*Power(Y1_,2)*Sin(7*xx) - 3*Y2_*Sin(yy) - 9*Y2_*Cos(3*yy)*Sin(2*yy) - 25*Power(Y2_,2)*Cos(5*yy)*Sin(2*yy) + 9*Cos(3*xx)*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy)) + 25*Y1_*Cos(5*xx)*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy)) - 5*Power(Y2_,2)*Sin(3*yy) - 3*Y2_*Sin(5*yy) - 5*Power(Y2_,2)*Sin(7*yy)))/4;
   }
 
   virtual void boundaryRhs( const DomainType& x,
@@ -403,7 +419,7 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= ( 1 + 0.5 * x[0] + 0.5 * x[1] + Y1_ );
+    D *= ( 1 + 0.25 * Y1_ * sin( 2 * x[0] ) + 0.25 * Y2_ * sin( 2 * x[1] ) );
   }
 
   //! advection coefficient (default = 0)
@@ -428,7 +444,8 @@ public:
   virtual void u(const DomainType& x,
 		 RangeType& phi) const
   {
-    phi = 0.5 * exp( - 6.0 * time() ) * x[0] * x[1];
+    phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
+    // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -436,9 +453,8 @@ public:
 			 JacobianRangeType& ret) const
   {
     JacobianRangeType grad;
-    grad[ 0 ][ 0 ] = 0.5 * exp( - 6 * time() ) * x[1];
-    grad[ 0 ][ 1 ] = 0.5 * exp( - 6 * time() ) * x[0];
-    grad[ 0 ][ 2 ] = 0.0;
+    grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
+    grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
 
     DomainType nu = x;
 
