@@ -153,6 +153,35 @@ private:
   using BaseType :: time;
 };
 
+template< int dimWorld >
+struct DeformationCoordFunction2
+  : public DeformationCoordFunctionBase< dimWorld >
+{
+  typedef DeformationCoordFunctionBase< dimWorld > BaseType;
+  typedef Dune::Fem::FunctionSpace< double, double, dimWorld, dimWorld > FunctionSpaceType;
+
+  typedef typename FunctionSpaceType::DomainFieldType DomainFieldType;
+  typedef typename FunctionSpaceType::RangeFieldType RangeFieldType;
+  typedef typename FunctionSpaceType::DomainType DomainType;
+  typedef typename FunctionSpaceType::RangeType RangeType;
+
+  explicit DeformationCoordFunction2 ( const double time = 0.0 )
+    : BaseType( time )
+  {}
+
+  virtual void evaluate ( const DomainType &x, RangeType &y ) const
+  {
+    const double at = 1.0 + 0.25 * sin( time() );
+    const double bt = 1.0 + 0.25 * cos( time() );
+
+    y[ 0 ] = x[ 0 ] * sqrt(at);
+    y[ 1 ] = x[ 1 ] * sqrt(bt);
+  }
+
+private:
+  using BaseType :: time;
+};
+
 // assemble-solve-estimate-mark-refine-IO-error-doitagain
 template <class HGridType>
 void algorithm ( HGridType &grid, int step, const int eocId )
@@ -173,7 +202,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   typedef DeformationCoordFunctionBase< HGridType::dimensionworld > DeformationType;
 
   // choose deformation
-  const std::string problemNames [] = { "surface_heat", "surface_mc", "surface_stationary_mc" };
+  const std::string problemNames [] = { "surface_heat", "surface_mc", "surface_stationary_mc", "curve_mc" };
   const int problemNumber = Dune :: Fem :: Parameter :: getEnum( "heat.problem", problemNames );
   DeformationType *deformationPtr = 0;
   switch( problemNumber )
@@ -186,6 +215,10 @@ void algorithm ( HGridType &grid, int step, const int eocId )
       break;
     case 2:
       deformationPtr = new DeformationCoordFunctionBase< HGridType::dimensionworld >;
+    case 3:
+      deformationPtr = new DeformationCoordFunction2< HGridType::dimensionworld >;
+      break;
+
       break;
 
     default:
@@ -221,6 +254,9 @@ void algorithm ( HGridType &grid, int step, const int eocId )
       break;
     case 2:
       problemPtr = new SurfaceMCStationaryProblem< FunctionSpaceType > ( timeProvider );
+      break;
+    case 3:
+      problemPtr = new CurveMCProblem< FunctionSpaceType > ( timeProvider );
       break;
 
     default:

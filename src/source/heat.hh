@@ -493,4 +493,316 @@ private:
   double Y2_;
 };
 
+template <class FunctionSpace>
+class CurveMCProblem : public TemporalProblemInterface < FunctionSpace >
+{
+  typedef TemporalProblemInterface < FunctionSpace >  BaseType;
+public:
+  typedef typename BaseType :: RangeType            RangeType;
+  typedef typename BaseType :: DomainType           DomainType;
+  typedef typename BaseType :: JacobianRangeType    JacobianRangeType;
+  typedef typename BaseType :: DiffusionTensorType  DiffusionTensorType;
+  typedef typename BaseType :: AdvectionVectorType  AdvectionVectorType;
+
+  enum { dimRange  = BaseType :: dimRange };
+  enum { dimDomain = BaseType :: dimDomain };
+
+  // get time function from base class
+  using BaseType :: time ;
+  using BaseType :: deltaT ;
+
+  CurveMCProblem( const Dune::Fem::TimeProviderBase &timeProvider )
+    : BaseType( timeProvider )
+  {
+    assert( dimDomain == 2 );
+  }
+
+  double Cos( const double a ) const { return cos( a ); }
+  double Sin( const double a ) const { return sin( a ); }
+  double Power( const double a, int n ) const
+  {
+    if( n == 1 )
+      return a;
+    else
+      return a * Power( a, n-1 );
+  }
+
+  //! the right hand side data (default = 0)
+  virtual void f(const DomainType& z,
+		 RangeType& phi) const
+  {
+    const double t = time();
+    const double x = z[0];
+    const double y = z[1];
+    const double Y1 = Y1_;
+    const double Y2 = Y2_;
+
+    phi = (8*Cos(t)*(Cos(3*x) + Y1*Cos(5*x) + Cos(3*y) + Y2*Cos(5*y)) + 
+     (4*(Cos(3*x) + Y1*Cos(5*x) + Cos(3*y) + Y2*Cos(5*y))*Sin(t)*
+        (-4*Power(x,2)*Sin(t) + 
+          Cos(t)*(4*Power(y,2) + (-Power(x,2) + Power(y,2))*Sin(t))))/
+      (16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+        Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+        Power(y,2)*Power(Sin(t),2)) - 
+     (4*x*Cos(t)*Sin(t)*(3*Sin(3*x) + 5*Y1*Sin(5*x)))/(4 + Sin(t)) + 
+     (x*(4 + Cos(t))*Sin(t)*(9*x*(4 + Cos(t))*Cos(3*y)*
+           (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+             (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t)) + 
+          25*x*Y2*(4 + Cos(t))*Cos(5*y)*
+           (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+             (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t)) - 
+          (4 + Sin(t))*(3*(33*Power(x,2) - 33*Power(y,2) + 
+                16*Power(x,2)*Cos(t) + (Power(x,2) + Power(y,2))*Cos(2*t) - 
+                16*Power(y,2)*Sin(t))*Sin(3*x) + 
+             5*Y1*(33*Power(x,2) - 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+                (Power(x,2) + Power(y,2))*Cos(2*t) - 16*Power(y,2)*Sin(t))*
+              Sin(5*x) + 4*x*y*(4 + Cos(t))*
+              (3 + 5*Y2 + 2*(3 + 5*Y2)*Cos(2*y) + 10*Y2*Cos(4*y))*
+              (4 + Sin(t))*Sin(y)))*(4 + Y1*Sin(2*x) + Y2*Sin(2*y)))/
+      Power(16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+        Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+        Power(y,2)*Power(Sin(t),2),2) + 
+     (4*y*Power(Sin(t),2)*(3*Sin(3*y) + 5*Y2*Sin(5*y)))/(4 + Cos(t)) + 
+     (2*y*Sin(t)*(4 + Sin(t))*(4 + Y1*Sin(2*x) + Y2*Sin(2*y))*
+        ((9*y*Cos(3*x)*(4 + Sin(t))*
+             (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+               (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t)))/
+           2. + (25*y*Y1*Cos(5*x)*(4 + Sin(t))*
+             (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+               (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t)))/
+           2. + (4 + Cos(t))*(-3*x*y*(32 + 8*Cos(t) + 8*Sin(t) + Sin(2*t))*
+              Sin(3*x) - 5*x*y*Y1*(32 + 8*Cos(t) + 8*Sin(t) + Sin(2*t))*
+              Sin(5*x) + (16*(Power(x,2) - Power(y,2)) + 
+                8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) - 
+                8*Power(y,2)*Sin(t) - Power(y,2)*Power(Sin(t),2))*
+              (3*Sin(3*y) + 5*Y2*Sin(5*y)))))/
+      Power(16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+        Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+        Power(y,2)*Power(Sin(t),2),2) + 
+     (y*Y1*Cos(2*x)*(-1 + Cos(2*t) - 8*Sin(t))*
+        (-5*y*Y1*Cos(t - 5*x) - 3*y*Cos(t - 3*x) + 3*y*Cos(t + 3*x) + 
+          5*y*Y1*Cos(t + 5*x) - 24*y*Sin(3*x) - 40*y*Y1*Sin(5*x) - 
+          5*x*Y2*Sin(t - 5*y) - 3*x*Sin(t - 3*y) + 24*x*Sin(3*y) + 
+          40*x*Y2*Sin(5*y) + 3*x*Sin(t + 3*y) + 5*x*Y2*Sin(t + 5*y)))/
+      (16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+        Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+        Power(y,2)*Power(Sin(t),2)) + 
+     (x*Y2*Cos(2*y)*(8*Sin(t) + Sin(2*t))*
+        (-5*y*Y1*Cos(t - 5*x) - 3*y*Cos(t - 3*x) + 3*y*Cos(t + 3*x) + 
+          5*y*Y1*Cos(t + 5*x) - 24*y*Sin(3*x) - 40*y*Y1*Sin(5*x) - 
+          5*x*Y2*Sin(t - 5*y) - 3*x*Sin(t - 3*y) + 24*x*Sin(3*y) + 
+          40*x*Y2*Sin(5*y) + 3*x*Sin(t + 3*y) + 5*x*Y2*Sin(t + 5*y)))/
+      (16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+        Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+        Power(y,2)*Power(Sin(t),2)) + 
+     (Power(x,2)*y*(-2*Sin(t)*(4 + Sin(t))*(4 + Y1*Sin(2*x) + Y2*Sin(2*y))*
+           ((9*y*Cos(3*x)*(4 + Sin(t))*
+                (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+                  (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t))
+                )/2. + (25*y*Y1*Cos(5*x)*(4 + Sin(t))*
+                (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+                  (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t))
+                )/2. + (4 + Cos(t))*
+              (-3*x*y*(32 + 8*Cos(t) + 8*Sin(t) + Sin(2*t))*Sin(3*x) - 
+                5*x*y*Y1*(32 + 8*Cos(t) + 8*Sin(t) + Sin(2*t))*Sin(5*x) + 
+                (16*(Power(x,2) - Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+                   Power(x,2)*Power(Cos(t),2) - 8*Power(y,2)*Sin(t) - 
+                   Power(y,2)*Power(Sin(t),2))*(3*Sin(3*y) + 5*Y2*Sin(5*y)))
+             ) + Y1*Cos(2*x)*(-1 + Cos(2*t) - 8*Sin(t))*
+           (16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+             Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+             Power(y,2)*Power(Sin(t),2))*
+           (5*y*Y1*Cos(t - 5*x) + 3*y*Cos(t - 3*x) - 3*y*Cos(t + 3*x) - 
+             5*y*Y1*Cos(t + 5*x) + 24*y*Sin(3*x) + 40*y*Y1*Sin(5*x) + 
+             5*x*Y2*Sin(t - 5*y) + 3*x*Sin(t - 3*y) - 24*x*Sin(3*y) - 
+             40*x*Y2*Sin(5*y) - 3*x*Sin(t + 3*y) - 5*x*Y2*Sin(t + 5*y))))/
+      (Power(4 + Sin(t),2)*Power(16*(Power(x,2) + Power(y,2)) + 
+          8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) + 
+          8*Power(y,2)*Sin(t) + Power(y,2)*Power(Sin(t),2),2)*
+        (Power(y,2)/Power(4 + Cos(t),2) + Power(x,2)/Power(4 + Sin(t),2)))\
+      + (x*y*(2*x*(4 + Cos(t))*Sin(t)*(4 + Sin(t))*
+           (4 + Y1*Sin(2*x) + Y2*Sin(2*y))*
+           (9*y*Cos(3*y)*(16*(Power(x,2) + Power(y,2)) + 
+                8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) + 
+                8*Power(y,2)*Sin(t) + Power(y,2)*Power(Sin(t),2)) + 
+             25*y*Y2*Cos(5*y)*(16*(Power(x,2) + Power(y,2)) + 
+                8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) + 
+                8*Power(y,2)*Sin(t) + Power(y,2)*Power(Sin(t),2)) - 
+             96*x*y*Sin(3*x) - 24*x*y*Cos(t)*Sin(3*x) - 
+             24*x*y*Sin(t)*Sin(3*x) - 3*x*y*Sin(2*t)*Sin(3*x) - 
+             160*x*y*Y1*Sin(5*x) - 40*x*y*Y1*Cos(t)*Sin(5*x) - 
+             40*x*y*Y1*Sin(t)*Sin(5*x) - 5*x*y*Y1*Sin(2*t)*Sin(5*x) + 
+             48*Power(x,2)*Sin(3*y) - 48*Power(y,2)*Sin(3*y) + 
+             24*Power(x,2)*Cos(t)*Sin(3*y) + 
+             3*Power(x,2)*Power(Cos(t),2)*Sin(3*y) - 
+             24*Power(y,2)*Sin(t)*Sin(3*y) - 
+             3*Power(y,2)*Power(Sin(t),2)*Sin(3*y) + 
+             80*Power(x,2)*Y2*Sin(5*y) - 80*Power(y,2)*Y2*Sin(5*y) + 
+             40*Power(x,2)*Y2*Cos(t)*Sin(5*y) + 
+             5*Power(x,2)*Y2*Power(Cos(t),2)*Sin(5*y) - 
+             40*Power(y,2)*Y2*Sin(t)*Sin(5*y) - 
+             5*Power(y,2)*Y2*Power(Sin(t),2)*Sin(5*y)) + 
+          y*Y2*Cos(2*y)*(-1 + Cos(2*t) - 8*Sin(t))*
+           (16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+             Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+             Power(y,2)*Power(Sin(t),2))*
+           (5*y*Y1*Cos(t - 5*x) + 3*y*Cos(t - 3*x) - 3*y*Cos(t + 3*x) - 
+             5*y*Y1*Cos(t + 5*x) + 24*y*Sin(3*x) + 40*y*Y1*Sin(5*x) + 
+             5*x*Y2*Sin(t - 5*y) + 3*x*Sin(t - 3*y) - 24*x*Sin(3*y) - 
+             40*x*Y2*Sin(5*y) - 3*x*Sin(t + 3*y) - 5*x*Y2*Sin(t + 5*y))))/
+      ((4 + Cos(t))*(4 + Sin(t))*
+        Power(16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+          Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+          Power(y,2)*Power(Sin(t),2),2)*
+        (Power(y,2)/Power(4 + Cos(t),2) + Power(x,2)/Power(4 + Sin(t),2)))\
+      + (x*y*(y*(4 + Cos(t))*Sin(t)*(4 + Sin(t))*
+           (25*x*Y1*Cos(5*x)*(33*Power(x,2) + 33*Power(y,2) + 
+                16*Power(x,2)*Cos(t) + (Power(x,2) - Power(y,2))*Cos(2*t) + 
+                16*Power(y,2)*Sin(t)) + 
+             18*x*Cos(3*x)*(16*(Power(x,2) + Power(y,2)) + 
+                8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) + 
+                8*Power(y,2)*Sin(t) + Power(y,2)*Power(Sin(t),2)) - 
+             2*(3*(16*(Power(x,2) - Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+                   Power(x,2)*Power(Cos(t),2) - 8*Power(y,2)*Sin(t) - 
+                   Power(y,2)*Power(Sin(t),2))*Sin(3*x) + 
+                (5*Y1*(33*Power(x,2) - 33*Power(y,2) + 
+                     16*Power(x,2)*Cos(t) + 
+                     (Power(x,2) + Power(y,2))*Cos(2*t) - 
+                     16*Power(y,2)*Sin(t))*Sin(5*x))/2. + 
+                x*y*(3 + 5*Y2 + 2*(3 + 5*Y2)*Cos(2*y) + 10*Y2*Cos(4*y))*
+                 (32 + 8*Cos(t) + 8*Sin(t) + Sin(2*t))*Sin(y)))*
+           (4 + Y1*Sin(2*x) + Y2*Sin(2*y)) + 
+          x*Y1*Cos(2*x)*(16*(Power(x,2) + Power(y,2)) + 
+             8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) + 
+             8*Power(y,2)*Sin(t) + Power(y,2)*Power(Sin(t),2))*
+           (8*Sin(t) + Sin(2*t))*
+           (5*y*Y1*Cos(t - 5*x) + 3*y*Cos(t - 3*x) - 3*y*Cos(t + 3*x) - 
+             5*y*Y1*Cos(t + 5*x) + 24*y*Sin(3*x) + 40*y*Y1*Sin(5*x) + 
+             5*x*Y2*Sin(t - 5*y) + 3*x*Sin(t - 3*y) - 24*x*Sin(3*y) - 
+             40*x*Y2*Sin(5*y) - 3*x*Sin(t + 3*y) - 5*x*Y2*Sin(t + 5*y))))/
+      ((4 + Cos(t))*(4 + Sin(t))*
+        Power(16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+          Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+          Power(y,2)*Power(Sin(t),2),2)*
+        (Power(y,2)/Power(4 + Cos(t),2) + Power(x,2)/Power(4 + Sin(t),2)))\
+      + (x*Power(y,2)*(-((4 + Cos(t))*Sin(t)*
+             (9*x*(4 + Cos(t))*Cos(3*y)*
+                (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+                  (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t))
+                 + 25*x*Y2*(4 + Cos(t))*Cos(5*y)*
+                (33*Power(x,2) + 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+                  (Power(x,2) - Power(y,2))*Cos(2*t) + 16*Power(y,2)*Sin(t))
+                 - (4 + Sin(t))*
+                (3*(33*Power(x,2) - 33*Power(y,2) + 16*Power(x,2)*Cos(t) + 
+                     (Power(x,2) + Power(y,2))*Cos(2*t) - 
+                     16*Power(y,2)*Sin(t))*Sin(3*x) + 
+                  5*Y1*(33*Power(x,2) - 33*Power(y,2) + 
+                     16*Power(x,2)*Cos(t) + 
+                     (Power(x,2) + Power(y,2))*Cos(2*t) - 
+                     16*Power(y,2)*Sin(t))*Sin(5*x) + 
+                  4*x*y*(4 + Cos(t))*
+                   (3 + 5*Y2 + 2*(3 + 5*Y2)*Cos(2*y) + 10*Y2*Cos(4*y))*
+                   (4 + Sin(t))*Sin(y)))*(4 + Y1*Sin(2*x) + Y2*Sin(2*y))) + 
+          Y2*Cos(2*y)*(16*(Power(x,2) + Power(y,2)) + 8*Power(x,2)*Cos(t) + 
+             Power(x,2)*Power(Cos(t),2) + 8*Power(y,2)*Sin(t) + 
+             Power(y,2)*Power(Sin(t),2))*(8*Sin(t) + Sin(2*t))*
+           (5*y*Y1*Cos(t - 5*x) + 3*y*Cos(t - 3*x) - 3*y*Cos(t + 3*x) - 
+             5*y*Y1*Cos(t + 5*x) + 24*y*Sin(3*x) + 40*y*Y1*Sin(5*x) + 
+             5*x*Y2*Sin(t - 5*y) + 3*x*Sin(t - 3*y) - 24*x*Sin(3*y) - 
+             40*x*Y2*Sin(5*y) - 3*x*Sin(t + 3*y) - 5*x*Y2*Sin(t + 5*y))))/
+      (Power(4 + Cos(t),2)*Power(16*(Power(x,2) + Power(y,2)) + 
+          8*Power(x,2)*Cos(t) + Power(x,2)*Power(Cos(t),2) + 
+          8*Power(y,2)*Sin(t) + Power(y,2)*Power(Sin(t),2),2)*
+        (Power(y,2)/Power(4 + Cos(t),2) + Power(x,2)/Power(4 + Sin(t),2))))/
+      8.; 
+  }
+
+  virtual void boundaryRhs( const DomainType& x,
+			    RangeType& value ) const
+  {
+    value = 0.0;
+  }
+
+  //! diffusion coefficient (default = Id)
+  virtual void D(const DomainType& x, DiffusionTensorType& D ) const
+  {
+    // set to identity by default
+    D = 0;
+    for( int i=0; i<D.rows; ++i )
+      D[ i ][ i ] = 1;
+
+    D *= ( 1 + 0.25 * Y1_ * sin( 2 * x[0] ) + 0.25 * Y2_ * sin( 2 * x[1] ) );
+  }
+
+  //! advection coefficient (default = 0)
+  virtual void b(const DomainType& x, AdvectionVectorType& b ) const
+  {
+    b = 0;
+  }
+
+  //! mass coefficient (default = 0)
+  virtual void m(const DomainType& x, RangeType &m) const
+  {
+    m = 0;
+  }
+
+  //! capacity coefficient (default = 1)
+  virtual void d(const DomainType& x, RangeType &d) const
+  {
+    d = RangeType(1);
+  }
+
+  //! the exact solution
+  virtual void u(const DomainType& x,
+		 RangeType& phi) const
+  {
+    phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
+    // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+  }
+
+  //! the jacobian of the exact solution
+  virtual void uJacobian(const DomainType& x,
+			 JacobianRangeType& ret) const
+  {
+    JacobianRangeType grad;
+    grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
+    grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
+
+    DomainType nu = x;
+
+    double dot = 0;
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	dot += nu[ i ] * grad[ 0 ][ i ];
+      }
+
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	ret[ 0 ][ i ] = grad[ 0 ][ i ] - dot * nu[ i ];
+      }
+  }
+
+  //! return true if given point belongs to the Dirichlet boundary (default is true)
+  virtual bool isDirichletPoint( const DomainType& x ) const
+  {
+    return false ;
+  }
+
+  //! return true if given point belongs to the Neumann boundary (default is false)
+  virtual bool isNeumannPoint( const DomainType& x ) const
+  {
+    return true ;
+  }
+
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {
+    Y1_ = Y1;
+    Y2_ = Y2;
+  }
+
+private:
+  double Y1_;
+  double Y2_;
+};
+
 #endif // #ifndef POISSON_HH
