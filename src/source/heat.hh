@@ -757,6 +757,281 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
+    // phi += sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+  }
+
+  //! the jacobian of the exact solution
+  virtual void uJacobian(const DomainType& x,
+			 JacobianRangeType& ret) const
+  {
+    JacobianRangeType grad;
+    grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
+    grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
+    // grad[ 0 ][ 0 ] += Y1_ * sin( time() ) * ( -5*sin( 5*x[0] ) );
+    // grad[ 0 ][ 1 ] += Y2_ * sin( time() ) * ( -5*sin( 5*x[1] ) );
+
+    DomainType nu = x;
+
+    double dot = 0;
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	dot += nu[ i ] * grad[ 0 ][ i ];
+      }
+
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	ret[ 0 ][ i ] = grad[ 0 ][ i ] - dot * nu[ i ];
+      }
+  }
+
+  //! return true if given point belongs to the Dirichlet boundary (default is true)
+  virtual bool isDirichletPoint( const DomainType& x ) const
+  {
+    return false ;
+  }
+
+  //! return true if given point belongs to the Neumann boundary (default is false)
+  virtual bool isNeumannPoint( const DomainType& x ) const
+  {
+    return true ;
+  }
+
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {
+    Y1_ = Y1;
+    Y2_ = Y2;
+  }
+
+private:
+  double Y1_;
+  double Y2_;
+};
+
+template <class FunctionSpace>
+class CurveMCLessSmoothProblem : public TemporalProblemInterface < FunctionSpace >
+{
+  typedef TemporalProblemInterface < FunctionSpace >  BaseType;
+public:
+  typedef typename BaseType :: RangeType            RangeType;
+  typedef typename BaseType :: DomainType           DomainType;
+  typedef typename BaseType :: JacobianRangeType    JacobianRangeType;
+  typedef typename BaseType :: DiffusionTensorType  DiffusionTensorType;
+  typedef typename BaseType :: AdvectionVectorType  AdvectionVectorType;
+
+  enum { dimRange  = BaseType :: dimRange };
+  enum { dimDomain = BaseType :: dimDomain };
+
+  // get time function from base class
+  using BaseType :: time ;
+  using BaseType :: deltaT ;
+
+  CurveMCLessSmoothProblem( const Dune::Fem::TimeProviderBase &timeProvider )
+    : BaseType( timeProvider )
+  {
+    assert( dimDomain == 2 );
+  }
+
+  double Cos( const double a ) const { return cos( a ); }
+  double Sin( const double a ) const { return sin( a ); }
+  double Power( const double a, int n ) const
+  {
+    if( n == 1 )
+      return a;
+    else
+      return a * Power( a, n-1 );
+  }
+
+  //! the right hand side data (default = 0)
+  virtual void f(const DomainType& x,
+		 RangeType& phi) const
+  {
+    const double t = time();
+    const double Y1 = Y1_;
+    const double Y2 = Y2_;
+
+    const auto eta = []( const double s ) { return s*std::abs(s); };
+    const auto deta = []( const double s ){ return 2.0*std::abs(s); };
+
+    RangeType f_md = Cos(t)*(Cos(3*x[0]) + Y1*Cos(5*x[0]) + Cos(3*x[1]) + Y2*Cos(5*x[1])) - (Cos(t)*x[0]*Sin(t)*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0])))/(2.*(4 + Sin(t))) + (x[1]*Power(Sin(t),2)*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])))/(2.*(4 + Cos(t)));
+    RangeType f_divVu = -((Cos(3*x[0]) + Y1*Cos(5*x[0]) + Cos(3*x[1]) + Y2*Cos(5*x[1]))*Sin(t)*(8*Sin(t) - 8*Power(x[1],2)*(Cos(t) + Sin(t)) + Sin(2*t)))/(4.*(Power(4 + Cos(t),2) - 4*Power(x[1],2)*(Cos(t) - Sin(t))));
+
+    RangeType f_lapu = (Sin(t)*(9216*Cos(3*x[1]) + 25600*Y2*Cos(5*x[1]) + 2304*Y2*Cos(3*x[1])*eta(x[1]) + 6400*Power(Y2,2)*Cos(5*x[1])*eta(x[1]) - 256*(4 + Y2*eta(x[1]))*x[0]*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0])) - 192*Cos(t)*(4 + Y2*eta(x[1]))*x[0]*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0])) - 48*Power(Cos(t),2)*(4 + Y2*eta(x[1]))*x[0]*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0])) - 4*Power(Cos(t),3)*(4 + Y2*eta(x[1]))*x[0]*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0])) - 256*(4 + Y2*eta(x[1]))*x[1]*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])) - 128*Cos(t)*(4 + Y2*eta(x[1]))*x[1]*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])) - 16*Power(Cos(t),2)*(4 + Y2*eta(x[1]))*x[1]*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])) - 64*(4 + Y2*eta(x[1]))*x[1]*Sin(t)*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])) - 32*Cos(t)*(4 + Y2*eta(x[1]))*x[1]*Sin(t)*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])) - 4*Power(Cos(t),2)*(4 + Y2*eta(x[1]))*x[1]*Sin(t)*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1])) - Y1*eta(x[0])*(-(Power(4 + Cos(t),3)*((4 + Cos(t))*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) - 4*x[0]*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0])))) + 8*Power(x[1],4)*(Cos(t) - Sin(t))*(72*Cos(3*x[0]) + 200*Y1*Cos(5*x[0]) - 25*Y2*Cos(t - 5*x[1]) - 9*Cos(t - 3*x[1]) - 72*Cos(3*x[1]) - 200*Y2*Cos(5*x[1]) - 9*Cos(t + 3*x[1]) - 25*Y2*Cos(t + 5*x[1]) + 25*Y1*Sin(t - 5*x[0]) + 9*Sin(t - 3*x[0]) + 9*Sin(t + 3*x[0]) + 25*Y1*Sin(t + 5*x[0])) + 4*Power(4 + Cos(t),2)*(3 + 5*Y2 + 2*(3 + 5*Y2)*Cos(2*x[1]) + 10*Y2*Cos(4*x[1]))*x[1]*(4 + Sin(t))*Sin(x[1]) - 2*Power(4 + Cos(t),2)*Power(x[1],2)*(72*Cos(3*x[0]) + 200*Y1*Cos(5*x[0]) - 50*Y2*Cos(t - 5*x[1]) - 18*Cos(t - 3*x[1]) - 72*Cos(3*x[1]) - 200*Y2*Cos(5*x[1]) - 18*Cos(t + 3*x[1]) - 50*Y2*Cos(t + 5*x[1]) + 25*Y1*Sin(t - 5*x[0]) + 9*Sin(t - 3*x[0]) + 9*Sin(t + 3*x[0]) + 25*Y1*Sin(t + 5*x[0]) + 25*Y2*Sin(t - 5*x[1]) + 9*Sin(t - 3*x[1]) + 9*Sin(t + 3*x[1]) + 25*Y2*Sin(t + 5*x[1]))) + 16*Power(x[1],4)*Power(Sin(t),2)*(4*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0])) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0])) + 768*Y2*Sin(3*x[1])*deta(x[1]) + 1280*Power(Y2,2)*Sin(5*x[1])*deta(x[1]) - 256*x[0]*x[1]*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) - 192*Cos(t)*x[0]*x[1]*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) - 48*Power(Cos(t),2)*x[0]*x[1]*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) - 4*Power(Cos(t),3)*x[0]*x[1]*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) + 64*Cos(t)*x[0]*Power(x[1],3)*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) + 16*Power(Cos(t),2)*x[0]*Power(x[1],3)*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) - 64*x[0]*Power(x[1],3)*Sin(t)*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) - 8*x[0]*Power(x[1],3)*Sin(2*t)*(Y1*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[0]) + Y2*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[1])) + 16*Power(Cos(t),2)*Power(x[1],2)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) - 180*Cos(3*x[1]) - 500*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) - 5*(-5*Y1*Cos(5*x[0]) + 9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) - 15*Y2*Sin(3*x[1])*deta(x[1]) - 25*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) + 256*Power(x[1],2)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) - 36*Cos(3*x[1]) - 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) - 9*Cos(3*x[1]) - 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) - 3*Y2*Sin(3*x[1])*deta(x[1]) - 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) - 64*Cos(t)*Power(x[1],4)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) - 36*Cos(3*x[1]) - 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) - 9*Cos(3*x[1]) - 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) - 3*Y2*Sin(3*x[1])*deta(x[1]) - 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) + 64*Power(x[1],4)*Sin(t)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) - 36*Cos(3*x[1]) - 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) - 9*Cos(3*x[1]) - 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) - 3*Y2*Sin(3*x[1])*deta(x[1]) - 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) + 64*Power(x[1],2)*Sin(t)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) + 36*Cos(3*x[1]) + 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) + 9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) + 3*Y2*Sin(3*x[1])*deta(x[1]) + 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) + 32*Cos(t)*Power(x[1],2)*Sin(t)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) + 36*Cos(3*x[1]) + 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) + 9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) + 3*Y2*Sin(3*x[1])*deta(x[1]) + 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) + 4*Power(Cos(t),2)*Power(x[1],2)*Sin(t)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) + 36*Cos(3*x[1]) + 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) + 9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) + 3*Y2*Sin(3*x[1])*deta(x[1]) + 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) - 8*Power(x[1],4)*Sin(2*t)*(36*Cos(3*x[0]) + 100*Y1*Cos(5*x[0]) + 36*Cos(3*x[1]) + 100*Y2*Cos(5*x[1]) + Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) + 9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) + 3*Y2*Sin(3*x[1])*deta(x[1]) + 5*Power(Y2,2)*Sin(5*x[1])*deta(x[1])) + 256*Cos(t)*(4*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) + Y2*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])) + 96*Power(Cos(t),2)*(4*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) + Y2*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])) + 16*Power(Cos(t),3)*(4*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) + Y2*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])) + Power(Cos(t),4)*(4*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) + Y2*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])) - 8*Power(Cos(t),3)*Power(x[1],2)*(4*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) + Y2*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])) + 16*Power(Cos(t),2)*Power(x[1],4)*(4*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1])) + Y2*(9*Cos(3*x[1]) + 25*Y2*Cos(5*x[1]))*eta(x[1]) + Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])) + 128*Cos(t)*Power(x[1],2)*(Y2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) - 18*Cos(3*x[1]) - 50*Y2*Cos(5*x[1]))*eta(x[1]) + Y1*(3*Sin(3*x[0]) + 5*Y1*Sin(5*x[0]))*deta(x[0]) + 2*(2*(9*Cos(3*x[0]) + 25*Y1*Cos(5*x[0]) - 18*Cos(3*x[1]) - 50*Y2*Cos(5*x[1])) - Y2*(3*Sin(3*x[1]) + 5*Y2*Sin(5*x[1]))*deta(x[1])))))/Power(2*Power(4 + Cos(t),2) - 8*Power(x[1],2)*(Cos(t) - Sin(t)),2);
+
+    phi = f_md + f_divVu + f_lapu;
+  }
+
+  virtual void boundaryRhs( const DomainType& x,
+			    RangeType& value ) const
+  {
+    value = 0.0;
+  }
+
+  //! diffusion coefficient (default = Id)
+  virtual void D(const DomainType& x, DiffusionTensorType& D ) const
+  {
+    // set to identity by default
+    D = 0;
+    for( int i=0; i<D.rows; ++i )
+      D[ i ][ i ] = 1;
+
+    D *= ( 1.0 + 0.25 * Y1_ * x[0] * std::abs(x[0])
+	   + 0.25 * Y2_ * x[1] * std::abs(x[1]) );
+  }
+
+  //! advection coefficient (default = 0)
+  virtual void b(const DomainType& x, AdvectionVectorType& b ) const
+  {
+    b = 0;
+  }
+
+  //! mass coefficient (default = 0)
+  virtual void m(const DomainType& x, RangeType &m) const
+  {
+    m = 0;
+  }
+
+  //! capacity coefficient (default = 1)
+  virtual void d(const DomainType& x, RangeType &d) const
+  {
+    d = RangeType(1);
+  }
+
+  //! the exact solution
+  virtual void u(const DomainType& x,
+		 RangeType& phi) const
+  {
+    phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
+    // phi += sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+  }
+
+  //! the jacobian of the exact solution
+  virtual void uJacobian(const DomainType& x,
+			 JacobianRangeType& ret) const
+  {
+    JacobianRangeType grad;
+    grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
+    grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
+    // grad[ 0 ][ 0 ] += Y1_ * sin( time() ) * ( -5*sin( 5*x[0] ) );
+    // grad[ 0 ][ 1 ] += Y2_ * sin( time() ) * ( -5*sin( 5*x[1] ) );
+
+    DomainType nu = x;
+
+    double dot = 0;
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	dot += nu[ i ] * grad[ 0 ][ i ];
+      }
+
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	ret[ 0 ][ i ] = grad[ 0 ][ i ] - dot * nu[ i ];
+      }
+  }
+
+  //! return true if given point belongs to the Dirichlet boundary (default is true)
+  virtual bool isDirichletPoint( const DomainType& x ) const
+  {
+    return false ;
+  }
+
+  //! return true if given point belongs to the Neumann boundary (default is false)
+  virtual bool isNeumannPoint( const DomainType& x ) const
+  {
+    return true ;
+  }
+
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {
+    Y1_ = Y1;
+    Y2_ = Y2;
+  }
+
+private:
+  double Y1_;
+  double Y2_;
+};
+
+template <class FunctionSpace>
+class CurveMCMoreNonlinearProblem : public TemporalProblemInterface < FunctionSpace >
+{
+  typedef TemporalProblemInterface < FunctionSpace >  BaseType;
+public:
+  typedef typename BaseType :: RangeType            RangeType;
+  typedef typename BaseType :: DomainType           DomainType;
+  typedef typename BaseType :: JacobianRangeType    JacobianRangeType;
+  typedef typename BaseType :: DiffusionTensorType  DiffusionTensorType;
+  typedef typename BaseType :: AdvectionVectorType  AdvectionVectorType;
+
+  enum { dimRange  = BaseType :: dimRange };
+  enum { dimDomain = BaseType :: dimDomain };
+
+  // get time function from base class
+  using BaseType :: time ;
+  using BaseType :: deltaT ;
+
+  CurveMCMoreNonlinearProblem( const Dune::Fem::TimeProviderBase &timeProvider )
+    : BaseType( timeProvider )
+  {
+    assert( dimDomain == 2 );
+  }
+
+  double Cos( const double a ) const { return cos( a ); }
+  double Sin( const double a ) const { return sin( a ); }
+  double Power( const double a, int n ) const
+  {
+    if( n == 1 )
+      return a;
+    else
+      return a * Power( a, n-1 );
+  }
+
+  //! the right hand side data (default = 0)
+  virtual void f(const DomainType& z,
+		 RangeType& phi) const
+  {
+    throw "not implemented yet";
+  }
+
+  virtual void boundaryRhs( const DomainType& x,
+			    RangeType& value ) const
+  {
+    value = 0.0;
+  }
+
+  //! diffusion coefficient (default = Id)
+  virtual void D(const DomainType& x, DiffusionTensorType& D ) const
+  {
+    // set to identity by default
+    D = 0;
+    for( int i=0; i<D.rows; ++i )
+      D[ i ][ i ] = 1;
+
+    D *= 1 + 0.25 * sin( Y1_ * x[0] + Y2_ * x[1] );
+  }
+
+  //! advection coefficient (default = 0)
+  virtual void b(const DomainType& x, AdvectionVectorType& b ) const
+  {
+    b = 0;
+  }
+
+  //! mass coefficient (default = 0)
+  virtual void m(const DomainType& x, RangeType &m) const
+  {
+    m = 0;
+  }
+
+  //! capacity coefficient (default = 1)
+  virtual void d(const DomainType& x, RangeType &d) const
+  {
+    d = RangeType(1);
+  }
+
+  //! the exact solution
+  virtual void u(const DomainType& x,
+		 RangeType& phi) const
+  {
+    phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
     // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
   }
 
@@ -804,5 +1079,137 @@ private:
   double Y1_;
   double Y2_;
 };
+
+
+template <class FunctionSpace>
+class CurveMCNonUniformProblem : public TemporalProblemInterface < FunctionSpace >
+{
+  typedef TemporalProblemInterface < FunctionSpace >  BaseType;
+public:
+  typedef typename BaseType :: RangeType            RangeType;
+  typedef typename BaseType :: DomainType           DomainType;
+  typedef typename BaseType :: JacobianRangeType    JacobianRangeType;
+  typedef typename BaseType :: DiffusionTensorType  DiffusionTensorType;
+  typedef typename BaseType :: AdvectionVectorType  AdvectionVectorType;
+
+  enum { dimRange  = BaseType :: dimRange };
+  enum { dimDomain = BaseType :: dimDomain };
+
+  // get time function from base class
+  using BaseType :: time ;
+  using BaseType :: deltaT ;
+
+  CurveMCNonUniformProblem( const Dune::Fem::TimeProviderBase &timeProvider )
+    : BaseType( timeProvider )
+  {
+    assert( dimDomain == 2 );
+  }
+
+  double Cos( const double a ) const { return cos( a ); }
+  double Sin( const double a ) const { return sin( a ); }
+  double Power( const double a, int n ) const
+  {
+    if( n == 1 )
+      return a;
+    else
+      return a * Power( a, n-1 );
+  }
+
+  //! the right hand side data (default = 0)
+  virtual void f(const DomainType& z,
+		 RangeType& phi) const
+  {
+    throw "not implemented yet";
+  }
+
+  virtual void boundaryRhs( const DomainType& x,
+			    RangeType& value ) const
+  {
+    value = 0.0;
+  }
+
+  //! diffusion coefficient (default = Id)
+  virtual void D(const DomainType& x, DiffusionTensorType& D ) const
+  {
+    // set to identity by default
+    D = 0;
+    for( int i=0; i<D.rows; ++i )
+      D[ i ][ i ] = 1;
+
+    D *= ( 1 + exp( -x[0]*x[0] / ( 0.5 * Y1_ + 0.5 ) )
+	   + exp( -x[1]*x[1] / ( 0.5 * Y2_ + 0.5 ) ) );
+  }
+
+  //! advection coefficient (default = 0)
+  virtual void b(const DomainType& x, AdvectionVectorType& b ) const
+  {
+    b = 0;
+  }
+
+  //! mass coefficient (default = 0)
+  virtual void m(const DomainType& x, RangeType &m) const
+  {
+    m = 0;
+  }
+
+  //! capacity coefficient (default = 1)
+  virtual void d(const DomainType& x, RangeType &d) const
+  {
+    d = RangeType(1);
+  }
+
+  //! the exact solution
+  virtual void u(const DomainType& x,
+		 RangeType& phi) const
+  {
+    phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
+    // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+  }
+
+  //! the jacobian of the exact solution
+  virtual void uJacobian(const DomainType& x,
+			 JacobianRangeType& ret) const
+  {
+    JacobianRangeType grad;
+    grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
+    grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
+
+    DomainType nu = x;
+
+    double dot = 0;
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	dot += nu[ i ] * grad[ 0 ][ i ];
+      }
+
+    for( unsigned int i = 0; i < nu.size(); ++i )
+      {
+	ret[ 0 ][ i ] = grad[ 0 ][ i ] - dot * nu[ i ];
+      }
+  }
+
+  //! return true if given point belongs to the Dirichlet boundary (default is true)
+  virtual bool isDirichletPoint( const DomainType& x ) const
+  {
+    return false ;
+  }
+
+  //! return true if given point belongs to the Neumann boundary (default is false)
+  virtual bool isNeumannPoint( const DomainType& x ) const
+  {
+    return true ;
+  }
+
+  virtual void setY1Y2( const double Y1, const double Y2 )
+  {
+    Y1_ = Y1;
+    Y2_ = Y2;
+  }
+
+private:
+  double Y1_;
+  double Y2_;
+};
+
 
 #endif // #ifndef POISSON_HH

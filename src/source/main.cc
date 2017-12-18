@@ -202,7 +202,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   typedef DeformationCoordFunctionBase< HGridType::dimensionworld > DeformationType;
 
   // choose deformation
-  const std::string problemNames [] = { "surface_heat", "surface_mc", "surface_stationary_mc", "curve_mc" };
+  const std::string problemNames [] = { "surface_heat", "surface_mc", "surface_stationary_mc", "curve_mc", "curve_mc_less-smooth", "curve_mc_more-nonlinear", "curve_mc_non-uniform" };
   const int problemNumber = Dune :: Fem :: Parameter :: getEnum( "heat.problem", problemNames );
   DeformationType *deformationPtr = 0;
   switch( problemNumber )
@@ -216,6 +216,9 @@ void algorithm ( HGridType &grid, int step, const int eocId )
     case 2:
       deformationPtr = new DeformationCoordFunctionBase< HGridType::dimensionworld >;
     case 3:
+    case 4:
+    case 5:
+    case 6:
       deformationPtr = new DeformationCoordFunction2< HGridType::dimensionworld >;
       break;
 
@@ -257,6 +260,15 @@ void algorithm ( HGridType &grid, int step, const int eocId )
       break;
     case 3:
       problemPtr = new CurveMCProblem< FunctionSpaceType > ( timeProvider );
+      break;
+    case 4:
+      problemPtr = new CurveMCLessSmoothProblem< FunctionSpaceType > ( timeProvider );
+      break;
+    case 5:
+      problemPtr = new CurveMCMoreNonlinearProblem< FunctionSpaceType > ( timeProvider );
+      break;
+    case 6:
+      problemPtr = new CurveMCNonUniformProblem< FunctionSpaceType > ( timeProvider );
       break;
 
     default:
