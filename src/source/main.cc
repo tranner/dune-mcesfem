@@ -209,17 +209,21 @@ void algorithm ( HGridType &grid, int step, const int eocId )
     {
     case 0:
       deformationPtr = new DeformationCoordFunction< HGridType::dimensionworld >;
+      std::cout << "using ellipsoid with varying major axis" << std::endl;
       break;
     case 1:
       deformationPtr = new DeformationCoordFunction< HGridType::dimensionworld >;
+      std::cout << "using ellipsoid with varying major axis" << std::endl;
       break;
     case 2:
       deformationPtr = new DeformationCoordFunctionBase< HGridType::dimensionworld >;
+      std::cout << "using stationary surface" << std::endl;
     case 3:
     case 4:
     case 5:
     case 6:
       deformationPtr = new DeformationCoordFunction2< HGridType::dimensionworld >;
+      std::cout << "using ellipse with both axes varying" << std::endl;
       break;
 
       break;
@@ -251,24 +255,31 @@ void algorithm ( HGridType &grid, int step, const int eocId )
     {
     case 0:
       problemPtr = new SurfaceHeatProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using surface heat problem" << std::endl;
       break;
     case 1:
       problemPtr = new SurfaceMCProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using surface mc problem" << std::endl;
       break;
     case 2:
       problemPtr = new SurfaceMCStationaryProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using stationary surface mc problem" << std::endl;
       break;
     case 3:
       problemPtr = new CurveMCProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using curve mc problem" << std::endl;
       break;
     case 4:
       problemPtr = new CurveMCLessSmoothProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using less smooth curve problem" << std::endl;
       break;
     case 5:
       problemPtr = new CurveMCMoreNonlinearProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using more nonlinear problem" << std::endl;
       break;
     case 6:
       problemPtr = new CurveMCNonUniformProblem< FunctionSpaceType > ( timeProvider );
+      std::cout << "using non-uniform curve problem" << std::endl;
       break;
 
     default:
