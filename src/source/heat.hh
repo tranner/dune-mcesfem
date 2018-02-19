@@ -984,12 +984,77 @@ public:
     else
       return a * Power( a, n-1 );
   }
+  double Power( const double a, const double n ) const
+  {
+    return std::pow( a, n );
+  }
 
   //! the right hand side data (default = 0)
-  virtual void f(const DomainType& z,
+  virtual void f(const DomainType& x,
 		 RangeType& phi) const
   {
-    throw "not implemented yet";
+    const double t = time();
+    const double xx = x[0];
+    const double yy = x[1];
+    const double Y1 = Y1_;
+    const double Y2 = Y2_;
+    const double p4 = 4.0 * M_PI;
+
+    phi = (4*Cos(t)*(Cos(3*xx) + Y1*Cos(5*xx) + Cos(3*yy) + Y2*Cos(5*yy)) - 
+     ((Cos(3*xx) + Y1*Cos(5*xx) + Cos(3*yy) + Y2*Cos(5*yy))*Sin(t)*
+        (8*Sin(t) - 8*Power(yy,2)*(Cos(t) + Sin(t)) + Sin(2*t)))/
+      (Power(4 + Cos(t),2) - 4*Power(yy,2)*(Cos(t) - Sin(t))) - 
+     (2*xx*Cos(t)*Sin(t)*(3*Sin(3*xx) + 5*Y1*Sin(5*xx)))/(4 + Sin(t)) + 
+     (2*yy*Power(Sin(t),2)*(3*Sin(3*yy) + 5*Y2*Sin(5*yy)))/(4 + Cos(t)) + 
+     (Sin(t)*(8*p4*xx*Power(yy,3)*Cos(p4*(xx*Y1 + Y2*yy))*
+           (1 + 8*Cos(t) + Cos(2*t) - 8*Sin(t) - Sin(2*t))*
+           (3*Y2*Sin(3*xx) + Y1*(5*Y2*Sin(5*xx) + 3*Sin(3*yy) + 5*Y2*Sin(5*yy)))\
+           - 4*yy*Power(4 + Cos(t),2)*
+           (p4*xx*(4 + Cos(t))*Cos(p4*(xx*Y1 + Y2*yy))*
+              (3*Y2*Sin(3*xx) + Y1*
+                 (5*Y2*Sin(5*xx) + 3*Sin(3*yy) + 5*Y2*Sin(5*yy))) + 
+             (4 + Sin(t))*(3*Sin(3*yy) + 5*Y2*Sin(5*yy))*
+              (4 + Sin(p4*(xx*Y1 + Y2*yy)))) + 
+          4*Power(yy,2)*Power(4 + Cos(t),2)*
+           (-144*Cos(3*yy) - 400*Y2*Cos(5*yy) + 
+             12*p4*Y1*Cos(p4*(xx*Y1 + Y2*yy))*Sin(3*xx) + 
+             20*p4*Power(Y1,2)*Cos(p4*(xx*Y1 + Y2*yy))*Sin(5*xx) - 
+             12*p4*Y2*Cos(p4*(xx*Y1 + Y2*yy))*Sin(3*yy) - 
+             20*p4*Power(Y2,2)*Cos(p4*(xx*Y1 + Y2*yy))*Sin(5*yy) - 
+             36*Cos(3*yy)*Sin(p4*(xx*Y1 + Y2*yy)) - 
+             100*Y2*Cos(5*yy)*Sin(p4*(xx*Y1 + Y2*yy)) + 
+             9*Cos(3*xx)*(4 + Sin(t))*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+             25*Y1*Cos(5*xx)*(4 + Sin(t))*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+             Sin(t)*(p4*Cos(p4*(xx*Y1 + Y2*yy))*
+                 (3*Y1*Sin(3*xx) + 5*Power(Y1,2)*Sin(5*xx) + 3*Y2*Sin(3*yy) + 
+                   5*Power(Y2,2)*Sin(5*yy)) + 
+                9*Cos(3*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+                25*Y2*Cos(5*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy)))) - 
+             2*Cos(t)*(9*Cos(3*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+                Y2*(p4*Cos(p4*(xx*Y1 + Y2*yy))*(3*Sin(3*yy) + 5*Y2*Sin(5*yy)) + 
+                   25*Cos(5*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy)))))) + 
+          16*Power(yy,4)*(Cos(t) - Sin(t))*
+           (144*Cos(3*yy) + 400*Y2*Cos(5*yy) - 
+             12*p4*Y1*Cos(p4*(xx*Y1 + Y2*yy))*Sin(3*xx) - 
+             20*p4*Power(Y1,2)*Cos(p4*(xx*Y1 + Y2*yy))*Sin(5*xx) - 
+             p4*Y1*Cos(p4*(xx*Y1 + Y2*yy))*Sin(t)*
+              (3*Sin(3*xx) + 5*Y1*Sin(5*xx)) + 
+             12*p4*Y2*Cos(p4*(xx*Y1 + Y2*yy))*Sin(3*yy) + 
+             20*p4*Power(Y2,2)*Cos(p4*(xx*Y1 + Y2*yy))*Sin(5*yy) + 
+             36*Cos(3*yy)*Sin(p4*(xx*Y1 + Y2*yy)) + 
+             100*Y2*Cos(5*yy)*Sin(p4*(xx*Y1 + Y2*yy)) - 
+             9*Cos(3*xx)*(4 + Sin(t))*(4 + Sin(p4*(xx*Y1 + Y2*yy))) - 
+             25*Y1*Cos(5*xx)*(4 + Sin(t))*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+             Cos(t)*(9*Cos(3*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+                Y2*(p4*Cos(p4*(xx*Y1 + Y2*yy))*(3*Sin(3*yy) + 5*Y2*Sin(5*yy)) + 
+                   25*Cos(5*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy)))))) + 
+          Power(4 + Cos(t),3)*(-4*xx*
+              (3 + 5*Y1 + 2*(3 + 5*Y1)*Cos(2*xx) + 10*Y1*Cos(4*xx))*Sin(xx)*
+              (4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+             (4 + Cos(t))*(9*Cos(3*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy))) + 
+                Y2*(p4*Cos(p4*(xx*Y1 + Y2*yy))*(3*Sin(3*yy) + 5*Y2*Sin(5*yy)) + 
+                   25*Cos(5*yy)*(4 + Sin(p4*(xx*Y1 + Y2*yy))))))))/
+	   Power(Power(4 + Cos(t),2) - 4*Power(yy,2)*(Cos(t) - Sin(t)),2))/4;
   }
 
   virtual void boundaryRhs( const DomainType& x,
@@ -1006,7 +1071,7 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= 1 + 0.25 * sin( Y1_ * x[0] + Y2_ * x[1] );
+    D *= 1 + 0.25 * sin( 4.0 * M_PI * Y1_ * x[0] + 4.0 * M_PI * Y2_ * x[1] );
   }
 
   //! advection coefficient (default = 0)
@@ -1032,7 +1097,7 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
-    // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+    // phi += sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -1042,6 +1107,8 @@ public:
     JacobianRangeType grad;
     grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
     grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
+    // grad[ 0 ][ 0 ] += Y1_ * sin( time() ) * ( -5*sin( 5*x[0] ) );
+    // grad[ 0 ][ 1 ] += Y2_ * sin( time() ) * ( -5*sin( 5*x[1] ) );
 
     DomainType nu = x;
 
