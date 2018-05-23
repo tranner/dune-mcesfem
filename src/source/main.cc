@@ -321,6 +321,7 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   MeanSchemeType meanScheme( gridPart, timeProvider, step );
 
   // initialise random components of scheme
+  const unsigned int nYs = Dune::Fem::Parameter::getValue< double >( "mcesfem.number_of_Ys");
   const int seed = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.seed" );
   const double center = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.center" );
   const double range = Dune::Fem::Parameter::getValue< double >( "mcesfem.rng.range" );

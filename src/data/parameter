@@ -35,6 +35,7 @@ heat.reducetimestepfactor: 0.25
 heat.problem:surface_mc
 
 mcesfem.M:1
+mcesfem.number_of_Ys:2
 mcesfem.rng.seed:1792
 mcesfem.rng.center:0.0
 mcesfem.rng.range:0.5
