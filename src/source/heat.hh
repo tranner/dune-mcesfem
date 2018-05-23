@@ -181,7 +181,7 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> )
   {}
 };
 
@@ -236,8 +236,8 @@ public:
     const double zz = x[2];
     const double tt = time();
 
-    const double Y1 = Y1_;
-    const double Y2 = Y2_;
+    const double Y1 = Ys_.at(0);
+    const double Y2 = Ys_.at(1);
 
     phi = (-128*Power(xx,7)*Y1*yy*Power(Sin(tt),2)*(48 + Sin(tt)) - 1024*Power(xx,8)*Y1*(-20*Y2 + (6*Y1 - Y2)*Sin(tt))*Sin(2*tt) -
 	   (Power(xx,3)*yy*Sin(tt)*Power(4 + Sin(tt),2)*(-2656 + 6168*Y1 + 160*Cos(tt) + 96*Cos(2*tt) - 24*Y1*Cos(2*tt) + 32*Y1*Power(zz,2)*(-227 + 3*Cos(2*tt) - 104*Sin(tt)) -
@@ -281,7 +281,7 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= ( 1 + x[0]*x[0] + Y1_ * x[1]*x[1]*x[1]*x[1] + Y2_ * x[2]*x[2]*x[2]*x[2] );
+    D *= ( 1 + x[0]*x[0] + Ys_.at(0) * x[1]*x[1]*x[1]*x[1] + Ys_.at(1) * x[2]*x[2]*x[2]*x[2] );
   }
 
   //! advection coefficient (default = 0)
@@ -349,15 +349,13 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> Ys )
   {
-    Y1_ = Y1;
-    Y2_ = Y2;
+    Ys_ = Ys;
   }
 
 private:
-  double Y1_;
-  double Y2_;
+  std::vector<double> Ys_;
 };
 
 template <class FunctionSpace>
@@ -402,7 +400,10 @@ public:
     const double xx = x[0];
     const double yy = x[1];
 
-    phi = (4*Cos(t)*Cos(3*xx) + 4*Y1_*Cos(t)*Cos(5*xx) + 4*Cos(t)*Cos(3*yy) + 4*Y2_*Cos(t)*Cos(5*yy) + 36*Cos(3*yy)*Sin(t) + 100*Y2_*Cos(5*yy)*Sin(t) + 9*Y1_*Cos(3*yy)*Sin(t)*Sin(2*xx) + 25*Y1_*Y2_*Cos(5*yy)*Sin(t)*Sin(2*xx) + 9*Y2_*Cos(3*yy)*Sin(t)*Sin(2*yy) + 25*Power(Y2_,2)*Cos(5*yy)*Sin(t)*Sin(2*yy) - xx*Sin(t)*(3*Sin(3*xx) + 5*Y1_*Sin(5*xx))*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy)) + 3*Y2_*Sin(t)*(Sin(yy) + Sin(5*yy)) - yy*Sin(t)*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy))*(3*Sin(3*yy) + 5*Y2_*Sin(5*yy)) - 2*xx*yy*Sin(t)*(Y2_*Cos(2*yy)*(3*Sin(3*xx) + 5*Y1_*Sin(5*xx)) + Y1_*Cos(2*xx)*(3*Sin(3*yy) + 5*Y2_*Sin(5*yy))) + 5*Power(Y2_,2)*Sin(t)*(Sin(3*yy) + Sin(7*yy)) + Power(yy,2)*Sin(t)*(-36*Cos(3*yy) - 100*Y2_*Cos(5*yy) + 3*Y1_*Sin(xx) - 9*Y1_*Cos(3*yy)*Sin(2*xx) - 25*Y1_*Y2_*Cos(5*yy)*Sin(2*xx) + 5*Power(Y1_,2)*Sin(3*xx) + 3*Y1_*Sin(5*xx) + 5*Power(Y1_,2)*Sin(7*xx) - 3*Y2_*Sin(yy) - 9*Y2_*Cos(3*yy)*Sin(2*yy) - 25*Power(Y2_,2)*Cos(5*yy)*Sin(2*yy) + 9*Cos(3*xx)*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy)) + 25*Y1_*Cos(5*xx)*(4 + Y1_*Sin(2*xx) + Y2_*Sin(2*yy)) - 5*Power(Y2_,2)*Sin(3*yy) - 3*Y2_*Sin(5*yy) - 5*Power(Y2_,2)*Sin(7*yy)))/4;
+    const double Y1 = Ys_.at(0);
+    const double Y2 = Ys_.at(1);
+
+    phi = (4*Cos(t)*Cos(3*xx) + 4*Y1*Cos(t)*Cos(5*xx) + 4*Cos(t)*Cos(3*yy) + 4*Y2*Cos(t)*Cos(5*yy) + 36*Cos(3*yy)*Sin(t) + 100*Y2*Cos(5*yy)*Sin(t) + 9*Y1*Cos(3*yy)*Sin(t)*Sin(2*xx) + 25*Y1*Y2*Cos(5*yy)*Sin(t)*Sin(2*xx) + 9*Y2*Cos(3*yy)*Sin(t)*Sin(2*yy) + 25*Power(Y2,2)*Cos(5*yy)*Sin(t)*Sin(2*yy) - xx*Sin(t)*(3*Sin(3*xx) + 5*Y1*Sin(5*xx))*(4 + Y1*Sin(2*xx) + Y2*Sin(2*yy)) + 3*Y2*Sin(t)*(Sin(yy) + Sin(5*yy)) - yy*Sin(t)*(4 + Y1*Sin(2*xx) + Y2*Sin(2*yy))*(3*Sin(3*yy) + 5*Y2*Sin(5*yy)) - 2*xx*yy*Sin(t)*(Y2*Cos(2*yy)*(3*Sin(3*xx) + 5*Y1*Sin(5*xx)) + Y1*Cos(2*xx)*(3*Sin(3*yy) + 5*Y2*Sin(5*yy))) + 5*Power(Y2,2)*Sin(t)*(Sin(3*yy) + Sin(7*yy)) + Power(yy,2)*Sin(t)*(-36*Cos(3*yy) - 100*Y2*Cos(5*yy) + 3*Y1*Sin(xx) - 9*Y1*Cos(3*yy)*Sin(2*xx) - 25*Y1*Y2*Cos(5*yy)*Sin(2*xx) + 5*Power(Y1,2)*Sin(3*xx) + 3*Y1*Sin(5*xx) + 5*Power(Y1,2)*Sin(7*xx) - 3*Y2*Sin(yy) - 9*Y2*Cos(3*yy)*Sin(2*yy) - 25*Power(Y2,2)*Cos(5*yy)*Sin(2*yy) + 9*Cos(3*xx)*(4 + Y1*Sin(2*xx) + Y2*Sin(2*yy)) + 25*Y1*Cos(5*xx)*(4 + Y1*Sin(2*xx) + Y2*Sin(2*yy)) - 5*Power(Y2,2)*Sin(3*yy) - 3*Y2*Sin(5*yy) - 5*Power(Y2,2)*Sin(7*yy)))/4;
   }
 
   virtual void boundaryRhs( const DomainType& x,
@@ -419,7 +420,7 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= ( 1 + 0.25 * Y1_ * sin( 2 * x[0] ) + 0.25 * Y2_ * sin( 2 * x[1] ) );
+    D *= ( 1 + 0.25 * Ys_.at(0) * sin( 2 * x[0] ) + 0.25 * Ys_.at(1) * sin( 2 * x[1] ) );
   }
 
   //! advection coefficient (default = 0)
@@ -445,7 +446,7 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
-    // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+    // + sin( time() ) * ( Ys_.at(0) * cos( 5 * x[0] ) + Ys_.at(1) * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -482,15 +483,13 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> Ys )
   {
-    Y1_ = Y1;
-    Y2_ = Y2;
+    Ys_ = Ys;
   }
 
 private:
-  double Y1_;
-  double Y2_;
+  std::vector<double> Ys_;
 };
 
 template <class FunctionSpace>
@@ -534,8 +533,8 @@ public:
     const double t = time();
     const double x = z[0];
     const double y = z[1];
-    const double Y1 = Y1_;
-    const double Y2 = Y2_;
+    const double Y1 = Ys_.at(0);
+    const double Y2 = Ys_.at(1);
 
     phi = (8*Cos(t)*(Cos(3*x) + Y1*Cos(5*x) + Cos(3*y) + Y2*Cos(5*y)) + 
      (4*(Cos(3*x) + Y1*Cos(5*x) + Cos(3*y) + Y2*Cos(5*y))*Sin(t)*
@@ -731,7 +730,7 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= ( 1 + 0.25 * Y1_ * sin( 2 * x[0] ) + 0.25 * Y2_ * sin( 2 * x[1] ) );
+    D *= ( 1 + 0.25 * Ys_.at(0) * sin( 2 * x[0] ) + 0.25 * Ys_.at(1) * sin( 2 * x[1] ) );
   }
 
   //! advection coefficient (default = 0)
@@ -757,7 +756,7 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
-    // phi += sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+    // phi += sin( time() ) * ( Ys_.at(0) * cos( 5 * x[0] ) + Ys_.at(1) * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -767,8 +766,8 @@ public:
     JacobianRangeType grad;
     grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
     grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
-    // grad[ 0 ][ 0 ] += Y1_ * sin( time() ) * ( -5*sin( 5*x[0] ) );
-    // grad[ 0 ][ 1 ] += Y2_ * sin( time() ) * ( -5*sin( 5*x[1] ) );
+    // grad[ 0 ][ 0 ] += Ys_.at(0) * sin( time() ) * ( -5*sin( 5*x[0] ) );
+    // grad[ 0 ][ 1 ] += Ys_.at(1) * sin( time() ) * ( -5*sin( 5*x[1] ) );
 
     DomainType nu = x;
 
@@ -796,15 +795,13 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> Ys )
   {
-    Y1_ = Y1;
-    Y2_ = Y2;
+    Ys_ = Ys;
   }
 
 private:
-  double Y1_;
-  double Y2_;
+  std::vector<double> Ys_;
 };
 
 template <class FunctionSpace>
@@ -846,8 +843,8 @@ public:
 		 RangeType& phi) const
   {
     const double t = time();
-    const double Y1 = Y1_;
-    const double Y2 = Y2_;
+    const double Y1 = Ys_.at(0);
+    const double Y2 = Ys_.at(1);
 
     const auto eta = []( const double s ) { return s*std::abs(s); };
     const auto deta = []( const double s ){ return 2.0*std::abs(s); };
@@ -874,8 +871,8 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= ( 1.0 + 0.25 * Y1_ * x[0] * std::abs(x[0])
-	   + 0.25 * Y2_ * x[1] * std::abs(x[1]) );
+    D *= ( 1.0 + 0.25 * Ys_.at(0) * x[0] * std::abs(x[0])
+	   + 0.25 * Ys_.at(1) * x[1] * std::abs(x[1]) );
   }
 
   //! advection coefficient (default = 0)
@@ -901,7 +898,7 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
-    // phi += sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+    // phi += sin( time() ) * ( Ys_.at(0) * cos( 5 * x[0] ) + Ys_.at(1) * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -911,8 +908,8 @@ public:
     JacobianRangeType grad;
     grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
     grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
-    // grad[ 0 ][ 0 ] += Y1_ * sin( time() ) * ( -5*sin( 5*x[0] ) );
-    // grad[ 0 ][ 1 ] += Y2_ * sin( time() ) * ( -5*sin( 5*x[1] ) );
+    // grad[ 0 ][ 0 ] += Ys_.at(0) * sin( time() ) * ( -5*sin( 5*x[0] ) );
+    // grad[ 0 ][ 1 ] += Ys_.at(1) * sin( time() ) * ( -5*sin( 5*x[1] ) );
 
     DomainType nu = x;
 
@@ -940,15 +937,13 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> Ys )
   {
-    Y1_ = Y1;
-    Y2_ = Y2;
+    Ys_ = Ys;
   }
 
 private:
-  double Y1_;
-  double Y2_;
+  std::vector<double> Ys_;
 };
 
 template <class FunctionSpace>
@@ -996,8 +991,8 @@ public:
     const double t = time();
     const double xx = x[0];
     const double yy = x[1];
-    const double Y1 = Y1_;
-    const double Y2 = Y2_;
+    const double Y1 = Ys_.at(0);
+    const double Y2 = Ys_.at(1);
     const double p4 = 4.0 * M_PI;
 
     phi = (4*Cos(t)*(Cos(3*xx) + Y1*Cos(5*xx) + Cos(3*yy) + Y2*Cos(5*yy)) - 
@@ -1071,7 +1066,7 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= 1 + 0.25 * sin( 4.0 * M_PI * Y1_ * x[0] + 4.0 * M_PI * Y2_ * x[1] );
+    D *= 1 + 0.25 * sin( 4.0 * M_PI * Ys_.at(0) * x[0] + 4.0 * M_PI * Ys_.at(1) * x[1] );
   }
 
   //! advection coefficient (default = 0)
@@ -1097,7 +1092,7 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
-    // phi += sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+    // phi += sin( time() ) * ( Ys_.at(0) * cos( 5 * x[0] ) + Ys_.at(1) * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -1107,7 +1102,7 @@ public:
     JacobianRangeType grad;
     grad[ 0 ][ 0 ] = sin( time() ) * ( -3*sin( 3*x[0] ) );
     grad[ 0 ][ 1 ] = sin( time() ) * ( -3*sin( 3*x[1] ) );
-    // grad[ 0 ][ 0 ] += Y1_ * sin( time() ) * ( -5*sin( 5*x[0] ) );
+    // grad[ 0 ][ 0 ] += Ys_.at(0) * sin( time() ) * ( -5*sin( 5*x[0] ) );
     // grad[ 0 ][ 1 ] += Y2_ * sin( time() ) * ( -5*sin( 5*x[1] ) );
 
     DomainType nu = x;
@@ -1136,15 +1131,13 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> Ys )
   {
-    Y1_ = Y1;
-    Y2_ = Y2;
+    Ys_ = Ys;
   }
 
 private:
-  double Y1_;
-  double Y2_;
+  std::vector<double> Ys_;
 };
 
 
@@ -1203,8 +1196,8 @@ public:
     for( int i=0; i<D.rows; ++i )
       D[ i ][ i ] = 1;
 
-    D *= ( 1 + exp( -x[0]*x[0] / ( 0.5 * Y1_ + 0.5 ) )
-	   + exp( -x[1]*x[1] / ( 0.5 * Y2_ + 0.5 ) ) );
+    D *= ( 1 + exp( -x[0]*x[0] / ( 0.5 * Ys_.at(0) + 0.5 ) )
+	   + exp( -x[1]*x[1] / ( 0.5 * Ys_.at(1) + 0.5 ) ) );
   }
 
   //! advection coefficient (default = 0)
@@ -1230,7 +1223,7 @@ public:
 		 RangeType& phi) const
   {
     phi = sin( time() ) * ( cos( 3*x[0] ) + cos( 3 * x[1] ) );
-    // + sin( time() ) * ( Y1_ * cos( 5 * x[0] ) + Y2_ * cos( 5 * x[1] ) );
+    // + sin( time() ) * ( Ys_.at(0) * cos( 5 * x[0] ) + Ys_.at(1) * cos( 5 * x[1] ) );
   }
 
   //! the jacobian of the exact solution
@@ -1267,15 +1260,13 @@ public:
     return true ;
   }
 
-  virtual void setY1Y2( const double Y1, const double Y2 )
+  virtual void setYs( const std::vector<double> Ys )
   {
-    Y1_ = Y1;
-    Y2_ = Y2;
+    Ys_ = Ys;
   }
 
 private:
-  double Y1_;
-  double Y2_;
+  std::vector<double> Ys_;
 };
 
 
