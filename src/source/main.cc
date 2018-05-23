@@ -329,19 +329,24 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   std::uniform_real_distribution<> dist( center-range/2.0, center+range/2.0 );
   for( auto& scheme : schemeVector )
     {
-      const double Y1 = dist(mt);
-      const double Y2 = dist(mt);
-
-      scheme.setY1Y2( Y1, Y2 );
+      const std::vector< double > Ys( nYs, dist(mt) );
+      scheme.setYs( Ys );
 
       for( int p = 0; p < Dune::Fem::MPIManager::size(); ++p )
 	{
 	  if( p == Dune::Fem::MPIManager::rank() )
-	    std::cout << "[" << p << "] " << "Y1: " << Y1 << " Y2: " << Y2 << std::endl;
+	    {
+	      std::cout << "[" << p << "] Ys:";
+	      for( auto Y : Ys )
+		{
+		  std::cout << " " << Y;
+		}
+	      std::cout << std::endl;
+	    }
 	  Dune::Fem::MPIManager::comm().barrier();
 	}
     }
-  problem.setY1Y2( center, center );
+  problem.setYs( std::vector<double>( nYs, center ) );
 
   typedef Dune::Fem::GridFunctionAdapter< ProblemType, GridPartType > GridExactSolutionType;
   GridExactSolutionType gridExactSolution("exact solution", problem, gridPart, 5 );

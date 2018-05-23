@@ -215,7 +215,7 @@ public:
     if( assemble )
     {
       // assemble linear operator (i.e. setup matrix)
-      implicitOperator_.model().setY1Y2( y1_, y2_ );
+      implicitOperator_.model().setYs( ys_ );
       implicitOperator_.jacobian( solution_ , linearOperator_ );
     }
 
@@ -234,13 +234,12 @@ public:
 
   const LinearOperatorType& linearOperator() const { return linearOperator_; }
 
-  void setY1Y2( const double y1, const double y2 )
+  void setYs( const std::vector<double> ys )
   {
-    y1_ = y1;
-    y2_ = y2;
+    ys_ = ys;
 
-    implicitModel_.setY1Y2( y1_, y2_ );
-    implicitOperator_.model().setY1Y2( y1_, y2_ );
+    implicitModel_.setYs( ys_ );
+    implicitOperator_.model().setYs( ys_ );
   }
 
 protected:
@@ -258,8 +257,7 @@ protected:
 
   const double solverEps_ ; // eps for linear solver
 
-  double y1_;
-  double y2_;
+  std::vector<double> ys_;
 };
 
 #endif // end #if ELLIPT_FEMSCHEME_HH

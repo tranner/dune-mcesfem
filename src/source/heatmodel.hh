@@ -249,9 +249,9 @@ struct HeatModel : public DiffusionModel<FunctionSpace,GridPart>
     return problem_;
   }
 
-  void setY1Y2( const double y1, const double y2 )
+  void setYs( const std::vector<double> ys )
   {
-    problem_.setY1Y2( y1, y2 );
+    problem_.setYs( ys );
   }
 
 protected:

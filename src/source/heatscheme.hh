@@ -76,8 +76,8 @@ struct HeatScheme : public FemScheme<ImplicitModel>
 
   void prepare() 
   {
-    explicitOperator_.model().setY1Y2( y1_, y2_ );
-    implicitOperator_.model().setY1Y2( y1_, y2_ );
+    explicitOperator_.model().setYs( ys_ );
+    implicitOperator_.model().setYs( ys_ );
 
     // apply constraints, e.g. Dirichlet contraints, to the solution 
     explicitOperator_.prepare( explicitModel_.dirichletBoundary(), solution_ );
@@ -118,16 +118,15 @@ struct HeatScheme : public FemScheme<ImplicitModel>
     return l2h1Error_;
   }
 
-  void setY1Y2( const double y1, const double y2 )
+  void setYs( const std::vector<double> ys )
   {
-    y1_ = y1;
-    y2_ = y2;
+    ys_ = ys;
 
-    implicitModel_.setY1Y2( y1_, y2_ );
-    explicitModel_.setY1Y2( y1_, y2_ );
+    implicitModel_.setYs( ys_ );
+    explicitModel_.setYs( ys_ );
 
-    explicitOperator_.model().setY1Y2( y1_, y2_ );
-    implicitOperator_.model().setY1Y2( y1_, y2_ );
+    explicitOperator_.model().setYs( ys_ );
+    implicitOperator_.model().setYs( ys_ );
   }
 
 private:
@@ -143,8 +142,7 @@ private:
   double linftyl2Error_;
   double l2h1Error_;
 
-  using BaseType::y1_;
-  using BaseType::y2_;
+  using BaseType::ys_;
 };
 
 #endif // end #if HEAT_FEMSCHEME_HH
