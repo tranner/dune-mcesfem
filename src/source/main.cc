@@ -329,7 +329,9 @@ void algorithm ( HGridType &grid, int step, const int eocId )
   std::uniform_real_distribution<> dist( center-range/2.0, center+range/2.0 );
   for( auto& scheme : schemeVector )
     {
-      const std::vector< double > Ys( nYs, dist(mt) );
+      std::vector< double > Ys( nYs );
+      for( unsigned int n = 0; n < nYs; ++n )
+	Ys.at(n) = dist(mt);
       scheme.setYs( Ys );
 
       for( int p = 0; p < Dune::Fem::MPIManager::size(); ++p )
